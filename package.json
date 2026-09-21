@@ -1,7 +1,7 @@
 {
   "name": "routine-tracker",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.1.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -10,7 +10,8 @@
     "lint": "eslint .",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "screenshots": "node scripts/capture-screenshots.mjs"
   },
   "dependencies": {
     "react": "^18.3.1",
@@ -24,10 +25,10 @@
     "@testing-library/user-event": "^14.6.1",
     "@vitejs/plugin-react": "^4.3.4",
     "autoprefixer": "^10.4.20",
-    "eslint": "^8.57.1",
+    "eslint": "^9.39.5",
     "eslint-plugin-react": "^7.37.4",
     "eslint-plugin-react-hooks": "^5.1.0",
-    "jsdom": "^25.0.1",
+    "jsdom": "^29.1.1",
     "postcss": "^8.4.49",
     "tailwindcss": "^3.4.17",
     "vite": "^6.0.5",

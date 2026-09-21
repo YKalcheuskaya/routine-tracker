@@ -1,25 +1,34 @@
 # Routine Tracker
 
-A playful, local-first daily routine companion for care, movement, and focus. The app makes today's small actions easy to see and check off, while keeping the weekly template available as a read-only plan.
+A calm, local-first routine companion for planning small Care, Move, and Focus actions, completing today's steps, and reviewing recent patterns without streak pressure.
 
 **Live demo:** Pending publication approval.
-**Status:** Local portfolio release candidate; no remote is configured.
+**Status:** Local V1.1 release candidate; no remote is configured.
 
-| Desktop | Mobile |
+| Desktop Today | Mobile Today |
 | --- | --- |
 | ![Routine Tracker desktop Today dashboard](docs/screenshots/desktop-today.png) | ![Routine Tracker mobile Today dashboard](docs/screenshots/mobile-today.png) |
 
+| Routine library | Seven-day insights |
+| --- | --- |
+| ![Routine Tracker routine-management view](docs/screenshots/desktop-routines.png) | ![Routine Tracker seven-day insights](docs/screenshots/desktop-insights.png) |
+
 ## What it does
 
-- Shows AM and PM routines for the local calendar day.
-- Tracks completed steps in the browser and resets to a fresh list on a new local date.
-- Offers a read-only weekly schedule so planning does not create accidental historical progress.
-- Handles unavailable or malformed browser storage without crashing.
-- Supports keyboard navigation, responsive layouts, and automated accessibility checks.
+- Shows AM and PM routines for the device's local calendar day.
+- Persists completed steps by date and keeps historical snapshots stable across later routine edits.
+- Provides a read-only weekly Schedule with complete keyboard-operated tabs.
+- Creates, edits, deletes, and orders custom routine steps across selected weekdays, categories, and AM/PM periods.
+- Summarizes seven days of completion by day and category without streaks or behavioral scores.
+- Exports a readable versioned JSON backup and validates an import before replacing local data.
+- Migrates the original version-1 daily record and recovers safely from malformed or unavailable browser storage.
+- Supports desktop, compact desktop, and mobile layouts with automated accessibility checks.
 
 ## Product boundary
 
-This is a fictional demo. Its `Care`, `Move`, and `Focus` routines do not provide medical advice, dosage guidance, personal data, or health claims. It intentionally has no accounts, backend, cloud sync, routine editor, history, streaks, analytics, notifications, or AI-generated recommendations.
+This is a fictional portfolio demo. Its Care, Move, and Focus content does not provide medical advice, dosage guidance, health claims, or behavioral recommendations. All routine and history data remains in the browser unless the user explicitly downloads a backup.
+
+The release intentionally has no accounts, backend, cloud sync, external analytics, push notifications, social features, payments, or AI-generated recommendations. Those capabilities would require separate privacy, security, deployment, and operations decisions rather than being small additions to this local-first product.
 
 ## Run locally
 
@@ -30,18 +39,25 @@ npm ci
 npm run dev
 ```
 
-Useful checks:
+## Verify
 
 ```bash
 npm run lint
 npm test
 npm run build
 npm run test:e2e
+npm audit
+```
+
+With the development server running at `http://127.0.0.1:4173`, regenerate the checked-in screenshots with:
+
+```bash
+npm run screenshots
 ```
 
 ## Architecture and quality
 
-The static routine contract lives in `src/data/routines.js`. The UI is organized by dashboard, schedule, completion, and shared presentation concerns. Progress uses a versioned `localStorage` record tied to a local calendar date; a date transition starts a clean daily state.
+The default fictional routines live in `src/data/routines.js`. Runtime state uses a validated version-2 `localStorage` contract containing the current routine library and dated completion records. Each saved day includes a compact step/category snapshot so later edits cannot silently rewrite historical totals. Import uses the same validator and requires a preview plus explicit confirmation before replacement.
 
 See [the product case study](docs/product-case-study.md) and [architecture and test strategy](docs/architecture-and-testing.md).
 
@@ -51,4 +67,4 @@ Julia defined the product direction, audience, requirements, acceptance criteria
 
 ## Roadmap
 
-Only after user research and an explicit scope decision: optional local routine editing, opt-in reminders, or private cross-device sync. None is implemented or implied by the current release.
+Only after user research and a separate privacy/security decision: optional private cross-device sync or opt-in reminders. Neither is implemented or implied by the current release.
