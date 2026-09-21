@@ -1,3 +1,7 @@
+/**
+ * Derives the current day's AM/PM presentation from the routine library and the
+ * tracker hook. This view renders state; storage and mutation remain outside it.
+ */
 import ProgressPill from '../../components/ProgressPill'
 import { formatToday, getWeekday } from '../completion/date'
 import { progressFor, routinesFor } from '../routines/selectors'

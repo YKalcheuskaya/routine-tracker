@@ -1,3 +1,8 @@
+/**
+ * Fictional starter content for a clean first launch and for the explicit
+ * "Restore demo routines" action. Runtime edits are stored separately in the
+ * versioned tracker record; this module is not a user-data database.
+ */
 const allDays = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
 
 export const routines = [

@@ -1,3 +1,4 @@
+/** Static-analysis rules for React components and hook dependency safety. */
 import reactPlugin from 'eslint-plugin-react'
 import hooksPlugin from 'eslint-plugin-react-hooks'
 

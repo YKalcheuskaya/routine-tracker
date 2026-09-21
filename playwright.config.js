@@ -1,3 +1,4 @@
+/** Browser-test matrix and the local Vite server used by end-to-end checks. */
 import { defineConfig, devices } from '@playwright/test'
 
 export default defineConfig({

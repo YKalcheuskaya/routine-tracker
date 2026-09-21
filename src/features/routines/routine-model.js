@@ -1,3 +1,8 @@
+/**
+ * Pure boundary between editable form drafts and stored routines. It validates
+ * required business fields and creates stable, collision-safe identifiers without
+ * depending on React or browser APIs.
+ */
 const idPattern = /[^a-z0-9]+/g
 
 function slug(value, fallback) {

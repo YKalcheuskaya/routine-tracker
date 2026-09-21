@@ -1,3 +1,8 @@
+/**
+ * Accessible routine-library editor. It manages temporary form and confirmation
+ * state, delegates normalization to routine-model, and reports approved changes
+ * upward instead of writing to browser storage directly.
+ */
 import { useState } from 'react'
 import { categoryMeta } from '../../data/routines'
 import { routineFromDraft } from './routine-model'

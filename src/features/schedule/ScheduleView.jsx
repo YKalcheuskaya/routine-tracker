@@ -1,3 +1,7 @@
+/**
+ * Read-only weekly preview. Weekday controls implement the ARIA tabs pattern,
+ * including one tabbable tab, linked panel semantics, and arrow/Home/End keys.
+ */
 import { useRef, useState } from 'react'
 import { categoryMeta } from '../../data/routines'
 import { routinesFor } from '../routines/selectors'

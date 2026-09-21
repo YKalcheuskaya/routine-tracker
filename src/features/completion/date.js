@@ -1,3 +1,7 @@
+/**
+ * Local-calendar helpers. Routine Tracker intentionally uses the device's local
+ * day rather than UTC so a user's Today view changes at their own midnight.
+ */
 const weekdays = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
 
 export function getLocalDate(date = new Date()) {

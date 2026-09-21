@@ -1,3 +1,8 @@
+/**
+ * Local backup boundary. Export creates a browser download; import validates and
+ * previews a file before the user can confirm replacement of current local data.
+ * Neither path sends routine data over the network.
+ */
 import { useState } from 'react'
 import { parseTrackerImport, serializeTrackerData } from './tracker-storage'
 

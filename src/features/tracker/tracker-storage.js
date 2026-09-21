@@ -1,3 +1,8 @@
+/**
+ * Versioned persistence boundary for Routine Tracker. This module owns the storage
+ * contract, validation, V1-to-V2 migration, safe normalization, and immutable
+ * completion updates; UI components never parse localStorage themselves.
+ */
 export const TRACKER_STORAGE_KEY = 'routine-tracker:daily-progress'
 export const TRACKER_STORAGE_VERSION = 2
 
@@ -61,6 +66,8 @@ function weekdayForDate(localDate) {
 }
 
 export function stepSnapshotFor(routines, localDate) {
+  // A compact snapshot records only the facts required by historical reporting.
+  // It deliberately does not copy editable titles, descriptions, or step details.
   const weekday = weekdayForDate(localDate)
   return routines
     .filter((routine) => routine.weekdays.includes(weekday))
@@ -72,6 +79,8 @@ export function createTrackerData(defaultRoutines) {
 }
 
 function migrateVersionOne(value, defaultRoutines) {
+  // V1 stored only one day's completed IDs. Migration rebuilds that day's
+  // available-step snapshot from the known demo routines and drops stale IDs.
   const valid = value
     && value.version === 1
     && /^\d{4}-\d{2}-\d{2}$/.test(value.localDate)
@@ -100,6 +109,8 @@ function normalizeData(value) {
 }
 
 export function loadTrackerData(storage, defaultRoutines) {
+  // Invalid or unreadable data never crashes the app. The returned flags let the
+  // UI distinguish recovery from a browser that cannot persist data at all.
   try {
     const raw = storage.getItem(TRACKER_STORAGE_KEY)
     if (!raw) return { data: createTrackerData(defaultRoutines), recovered: false, migrated: false, available: true }

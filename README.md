@@ -59,7 +59,7 @@ npm run screenshots
 
 The default fictional routines live in `src/data/routines.js`. Runtime state uses a validated version-2 `localStorage` contract containing the current routine library and dated completion records. Each saved day includes a compact step/category snapshot so later edits cannot silently rewrite historical totals. Import uses the same validator and requires a preview plus explicit confirmation before replacement.
 
-See [the product case study](docs/product-case-study.md) and [architecture and test strategy](docs/architecture-and-testing.md).
+See [the product case study](docs/product-case-study.md), [architecture and test strategy](docs/architecture-and-testing.md), and the detailed [codebase walkthrough](docs/codebase-walkthrough.md).
 
 ## Contribution disclosure
 

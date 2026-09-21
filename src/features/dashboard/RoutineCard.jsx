@@ -1,3 +1,7 @@
+/**
+ * Interactive Today card. Stable routine-and-step identifiers connect each
+ * checkbox to persisted completion without using editable display text as a key.
+ */
 import { categoryMeta } from '../../data/routines'
 import ProgressPill from '../../components/ProgressPill'
 

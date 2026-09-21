@@ -1,3 +1,7 @@
+/**
+ * Read-only presentation for seven-day totals and category summaries. All
+ * calculations are delegated to pure helpers so they can be tested independently.
+ */
 import { categoryMeta } from '../../data/routines'
 import { buildSevenDayInsights, formatHistoryDate } from './history-insights'
 

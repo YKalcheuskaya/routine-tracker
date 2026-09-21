@@ -1,3 +1,8 @@
+/**
+ * React state adapter for the pure tracker-storage module. It exposes one shared
+ * state-and-actions API to the application, persists every accepted mutation, and
+ * refreshes the local date when time or browser visibility changes.
+ */
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { getLocalDate } from '../completion/date'
 import { createTrackerData, loadTrackerData, saveTrackerData, toggleStepForDate } from './tracker-storage'
@@ -18,6 +23,7 @@ export function useTrackerData(defaultRoutines, now = () => new Date()) {
   })
 
   useEffect(() => {
+    // A migrated record is written back once so later launches use only V2.
     if (!state.migrated || !storage) return
     const available = saveTrackerData(storage, state.data)
     setState((current) => ({ ...current, migrated: false, available }))
@@ -26,6 +32,8 @@ export function useTrackerData(defaultRoutines, now = () => new Date()) {
   const refreshForDate = useCallback(() => setLocalDate(getLocalDate(now())), [now])
 
   useEffect(() => {
+    // Focus and visibility checks cover sleeping/background tabs; the interval
+    // covers an open tab that remains active across local midnight.
     const interval = window.setInterval(refreshForDate, 60_000)
     window.addEventListener('focus', refreshForDate)
     document.addEventListener('visibilitychange', refreshForDate)

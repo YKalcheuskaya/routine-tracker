@@ -1,3 +1,4 @@
+/** Pure read helpers shared by Today and Schedule views. */
 export function routinesFor(routines, weekday, period) {
   return routines.filter((routine) => routine.period === period && routine.weekdays.includes(weekday))
 }

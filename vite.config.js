@@ -1,3 +1,4 @@
+/** Shared Vite build and Vitest DOM-test configuration. */
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 

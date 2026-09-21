@@ -1,3 +1,7 @@
+/**
+ * Reproducible portfolio screenshot utility. Each capture starts with a fresh
+ * browser context so local progress cannot leak between images.
+ */
 import { chromium } from '@playwright/test'
 
 const baseURL = process.env.ROUTINE_TRACKER_URL ?? 'http://127.0.0.1:4173'

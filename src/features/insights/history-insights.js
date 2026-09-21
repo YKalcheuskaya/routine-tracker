@@ -1,3 +1,7 @@
+/**
+ * Pure seven-day reporting logic. Past days are calculated only from their saved
+ * snapshots, preventing later routine edits from silently changing history.
+ */
 import { stepSnapshotFor } from '../tracker/tracker-storage'
 
 const categoryNames = ['care', 'move', 'focus']
@@ -36,6 +40,8 @@ export function summarizeRecord(record) {
 }
 
 export function buildSevenDayInsights(days, routines, localDate) {
+  // Today may not have a saved record yet, so only today's available steps are
+  // derived from the live schedule. Earlier unsaved days remain explicitly empty.
   const history = recentLocalDates(localDate).map((date, index) => {
     const stored = days[date]
     const record = stored ?? (index === 0 ? { completedStepIds: [], stepSnapshot: stepSnapshotFor(routines, date) } : null)

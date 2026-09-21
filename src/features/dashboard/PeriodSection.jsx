@@ -1,3 +1,4 @@
+/** Groups the routines for one part of the day and owns its empty state. */
 import RoutineCard from './RoutineCard'
 
 export default function PeriodSection({ title, routines, completedStepIds, onToggle }) {
