@@ -1,7 +1,7 @@
 {
   "name": "routine-tracker",
   "private": true,
-  "version": "1.1.0",
+  "version": "2.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -14,6 +14,7 @@
     "screenshots": "node scripts/capture-screenshots.mjs"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.117.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },

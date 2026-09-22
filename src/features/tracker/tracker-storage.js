@@ -1,126 +1,102 @@
 /**
- * Versioned persistence boundary for Routine Tracker. This module owns the storage
- * contract, validation, V1-to-V2 migration, safe normalization, and immutable
- * completion updates; UI components never parse localStorage themselves.
+ * Versioned local persistence for the wellness tracker. Health entries remain
+ * in this browser; this layer validates, migrates, and immutably updates them.
  */
+import { defaultGoals, defaultMedications, emptyDay } from '../wellness/wellness-model'
+
 export const TRACKER_STORAGE_KEY = 'routine-tracker:daily-progress'
-export const TRACKER_STORAGE_VERSION = 2
+export const TRACKER_STORAGE_VERSION = 3
 
-const categories = new Set(['care', 'move', 'focus'])
-const periods = new Set(['am', 'pm'])
-const weekdays = new Set(['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'])
-
-function cloneRoutines(routines) {
-  return routines.map((routine) => ({
-    ...routine,
-    weekdays: [...routine.weekdays],
-    steps: routine.steps.map((step) => ({ ...step })),
-  }))
+function cloneRoutines(routines = []) {
+  return routines.map((routine) => ({ ...routine, weekdays: [...routine.weekdays], steps: routine.steps.map((step) => ({ ...step })) }))
 }
 
-function isNonEmptyString(value) {
-  return typeof value === 'string' && value.trim().length > 0
+function cloneDay(day) {
+  const base = emptyDay()
+  return {
+    ...base,
+    ...day,
+    sleep: { ...base.sleep, ...day?.sleep },
+    activities: (day?.activities ?? []).map((activity) => ({ ...activity })),
+    meals: (day?.meals ?? []).map((meal) => ({ ...meal })),
+    medicationLogs: { ...(day?.medicationLogs ?? {}) },
+    wellbeing: { ...base.wellbeing, ...day?.wellbeing },
+    cycle: { ...base.cycle, ...day?.cycle, menopauseSymptoms: [...(day?.cycle?.menopauseSymptoms ?? [])] },
+    symptoms: (day?.symptoms ?? []).map((symptom) => ({ ...symptom })),
+    routineCompletedIds: [...(day?.routineCompletedIds ?? [])],
+  }
 }
 
-function isValidRoutine(routine) {
-  return routine
-    && isNonEmptyString(routine.id)
-    && categories.has(routine.category)
-    && periods.has(routine.period)
-    && isNonEmptyString(routine.title)
-    && typeof routine.description === 'string'
-    && Array.isArray(routine.weekdays)
-    && routine.weekdays.length > 0
-    && routine.weekdays.every((day) => weekdays.has(day))
-    && new Set(routine.weekdays).size === routine.weekdays.length
-    && Array.isArray(routine.steps)
-    && routine.steps.length > 0
-    && routine.steps.every((step) => step && isNonEmptyString(step.id) && isNonEmptyString(step.title) && (step.detail === undefined || typeof step.detail === 'string'))
-    && new Set(routine.steps.map((step) => step.id)).size === routine.steps.length
-}
+function validDate(date) { return /^\d{4}-\d{2}-\d{2}$/.test(date) }
+function nonEmpty(value) { return typeof value === 'string' && value.trim().length > 0 }
+function nonNegative(value) { return Number.isFinite(value) && value >= 0 }
 
-function isValidDayRecord(record) {
-  return record
-    && Array.isArray(record.completedStepIds)
-    && record.completedStepIds.every(isNonEmptyString)
-    && Array.isArray(record.stepSnapshot)
-    && record.stepSnapshot.every((step) => step && isNonEmptyString(step.id) && categories.has(step.category))
+function isValidDay(day) {
+  return day && typeof day === 'object'
+    && nonNegative(day.steps) && nonNegative(day.waterMl)
+    && day.sleep && typeof day.sleep === 'object'
+    && Array.isArray(day.activities) && day.activities.every((item) => nonEmpty(item.id) && nonEmpty(item.type) && nonNegative(item.minutes))
+    && Array.isArray(day.meals) && day.meals.every((item) => nonEmpty(item.id) && nonEmpty(item.type))
+    && day.medicationLogs && typeof day.medicationLogs === 'object'
+    && day.wellbeing && typeof day.wellbeing === 'object'
+    && day.cycle && typeof day.cycle === 'object'
+    && Array.isArray(day.symptoms)
+    && Array.isArray(day.routineCompletedIds)
 }
 
 function isValidData(value) {
-  return value
-    && value.version === TRACKER_STORAGE_VERSION
+  return value && value.version === TRACKER_STORAGE_VERSION
+    && value.goals && typeof value.goals === 'object'
+    && Object.entries(defaultGoals).every(([key]) => Number.isFinite(value.goals[key]) || (key === 'bedtime' && typeof value.goals[key] === 'string'))
+    && Array.isArray(value.medications) && value.medications.every((item) => nonEmpty(item.id) && nonEmpty(item.label) && /^\d{2}:\d{2}$/.test(item.time) && Array.isArray(item.weekdays))
     && Array.isArray(value.routines)
-    && value.routines.every(isValidRoutine)
-    && new Set(value.routines.map((routine) => routine.id)).size === value.routines.length
-    && value.days
-    && typeof value.days === 'object'
-    && !Array.isArray(value.days)
-    && Object.entries(value.days).every(([date, record]) => /^\d{4}-\d{2}-\d{2}$/.test(date) && isValidDayRecord(record))
+    && value.days && typeof value.days === 'object' && !Array.isArray(value.days)
+    && Object.entries(value.days).every(([date, day]) => validDate(date) && isValidDay(day))
 }
 
-function weekdayForDate(localDate) {
-  const [year, month, day] = localDate.split('-').map(Number)
-  const names = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
-  return names[new Date(year, month - 1, day, 12).getDay()]
+export function createTrackerData(defaultRoutines = []) {
+  return {
+    version: TRACKER_STORAGE_VERSION,
+    goals: { ...defaultGoals },
+    medications: defaultMedications.map((item) => ({ ...item, weekdays: [...item.weekdays] })),
+    routines: cloneRoutines(defaultRoutines),
+    days: {},
+  }
 }
 
-export function stepSnapshotFor(routines, localDate) {
-  // A compact snapshot records only the facts required by historical reporting.
-  // It deliberately does not copy editable titles, descriptions, or step details.
-  const weekday = weekdayForDate(localDate)
-  return routines
-    .filter((routine) => routine.weekdays.includes(weekday))
-    .flatMap((routine) => routine.steps.map((step) => ({ id: `${routine.id}:${step.id}`, category: routine.category })))
-}
-
-export function createTrackerData(defaultRoutines) {
-  return { version: TRACKER_STORAGE_VERSION, routines: cloneRoutines(defaultRoutines), days: {} }
-}
-
-function migrateVersionOne(value, defaultRoutines) {
-  // V1 stored only one day's completed IDs. Migration rebuilds that day's
-  // available-step snapshot from the known demo routines and drops stale IDs.
-  const valid = value
-    && value.version === 1
-    && /^\d{4}-\d{2}-\d{2}$/.test(value.localDate)
-    && Array.isArray(value.completedStepIds)
-    && value.completedStepIds.every(isNonEmptyString)
-  if (!valid) return null
+function migrateLegacy(value, defaultRoutines) {
+  if (!value || ![1, 2].includes(value.version)) return null
   const data = createTrackerData(defaultRoutines)
-  const snapshot = stepSnapshotFor(data.routines, value.localDate)
-  const availableIds = new Set(snapshot.map((step) => step.id))
-  data.days[value.localDate] = {
-    completedStepIds: [...new Set(value.completedStepIds)].filter((id) => availableIds.has(id)),
-    stepSnapshot: snapshot,
+  if (value.version === 1 && validDate(value.localDate)) {
+    data.days[value.localDate] = { ...emptyDay(), routineCompletedIds: [...new Set(value.completedStepIds ?? [])] }
+  }
+  if (value.version === 2 && value.days && typeof value.days === 'object') {
+    data.routines = cloneRoutines(value.routines ?? defaultRoutines)
+    for (const [date, record] of Object.entries(value.days)) {
+      if (!validDate(date)) continue
+      data.days[date] = { ...emptyDay(), routineCompletedIds: [...new Set(record?.completedStepIds ?? [])] }
+    }
   }
   return data
 }
 
-function normalizeData(value) {
+export function normalizeData(value) {
   return {
     version: TRACKER_STORAGE_VERSION,
+    goals: { ...defaultGoals, ...value.goals },
+    medications: value.medications.map((item) => ({ ...item, weekdays: [...item.weekdays] })),
     routines: cloneRoutines(value.routines),
-    days: Object.fromEntries(Object.entries(value.days).map(([date, record]) => [date, {
-      completedStepIds: [...new Set(record.completedStepIds)],
-      stepSnapshot: record.stepSnapshot.map((step) => ({ ...step })),
-    }])),
+    days: Object.fromEntries(Object.entries(value.days).map(([date, day]) => [date, cloneDay(day)])),
   }
 }
 
 export function loadTrackerData(storage, defaultRoutines) {
-  // Invalid or unreadable data never crashes the app. The returned flags let the
-  // UI distinguish recovery from a browser that cannot persist data at all.
   try {
     const raw = storage.getItem(TRACKER_STORAGE_KEY)
     if (!raw) return { data: createTrackerData(defaultRoutines), recovered: false, migrated: false, available: true }
     let parsed
-    try {
-      parsed = JSON.parse(raw)
-    } catch {
-      return { data: createTrackerData(defaultRoutines), recovered: true, migrated: false, available: true }
-    }
-    const migrated = migrateVersionOne(parsed, defaultRoutines)
+    try { parsed = JSON.parse(raw) } catch { return { data: createTrackerData(defaultRoutines), recovered: true, migrated: false, available: true } }
+    const migrated = migrateLegacy(parsed, defaultRoutines)
     if (migrated) return { data: migrated, recovered: false, migrated: true, available: true }
     if (!isValidData(parsed)) return { data: createTrackerData(defaultRoutines), recovered: true, migrated: false, available: true }
     return { data: normalizeData(parsed), recovered: false, migrated: false, available: true }
@@ -130,41 +106,60 @@ export function loadTrackerData(storage, defaultRoutines) {
 }
 
 export function saveTrackerData(storage, data) {
-  try {
-    storage.setItem(TRACKER_STORAGE_KEY, JSON.stringify(data))
-    return true
-  } catch {
-    return false
-  }
+  try { storage.setItem(TRACKER_STORAGE_KEY, JSON.stringify(data)); return true } catch { return false }
 }
 
-export function serializeTrackerData(data) {
-  return JSON.stringify(normalizeData(data), null, 2)
-}
+export function serializeTrackerData(data) { return JSON.stringify(normalizeData(data), null, 2) }
 
 export function parseTrackerImport(text) {
   let parsed
-  try {
-    parsed = JSON.parse(text)
-  } catch {
-    return { data: null, error: 'The selected file is not valid JSON.' }
-  }
-  if (!isValidData(parsed)) return { data: null, error: 'The selected file is not a valid Routine Tracker version 2 export.' }
+  try { parsed = JSON.parse(text) } catch { return { data: null, error: 'The selected file is not valid JSON.' } }
+  if (!isValidData(parsed)) return { data: null, error: 'The selected file is not a valid version 3 wellness export.' }
   return { data: normalizeData(parsed), error: null }
 }
 
-export function toggleStepForDate(data, localDate, stepId) {
-  const snapshot = stepSnapshotFor(data.routines, localDate)
-  const availableIds = new Set(snapshot.map((step) => step.id))
-  if (!availableIds.has(stepId)) return data
-  const current = data.days[localDate]?.completedStepIds ?? []
-  const completed = new Set(current.filter((id) => availableIds.has(id)))
-  completed.has(stepId) ? completed.delete(stepId) : completed.add(stepId)
-  return {
-    ...data,
-    days: {
-      ...data.days,
-      [localDate]: { completedStepIds: [...completed], stepSnapshot: snapshot },
-    },
-  }
+function updateDay(data, localDate, mutate) {
+  const current = cloneDay(data.days[localDate] ?? emptyDay())
+  const nextDay = mutate(current)
+  return { ...data, days: { ...data.days, [localDate]: cloneDay(nextDay) } }
 }
+
+export function updateMetricsForDate(data, localDate, values) {
+  return updateDay(data, localDate, (day) => ({ ...day, steps: Math.max(0, Number(values.steps ?? day.steps)), waterMl: Math.max(0, Number(values.waterMl ?? day.waterMl)) }))
+}
+
+export function updateSleepForDate(data, localDate, sleep) {
+  return updateDay(data, localDate, (day) => ({ ...day, sleep: { ...day.sleep, ...sleep } }))
+}
+
+export function addActivityForDate(data, localDate, activity) {
+  return updateDay(data, localDate, (day) => ({ ...day, activities: [...day.activities, { ...activity, minutes: Math.max(0, Number(activity.minutes)) }] }))
+}
+
+export function addMealForDate(data, localDate, meal) {
+  return updateDay(data, localDate, (day) => ({ ...day, meals: [...day.meals, { ...meal }] }))
+}
+
+export function removeEntryForDate(data, localDate, collection, id) {
+  return updateDay(data, localDate, (day) => ({ ...day, [collection]: day[collection].filter((entry) => entry.id !== id) }))
+}
+
+export function toggleMedicationForDate(data, localDate, medicationId) {
+  return updateDay(data, localDate, (day) => ({ ...day, medicationLogs: { ...day.medicationLogs, [medicationId]: day.medicationLogs[medicationId] ? null : new Date().toISOString() } }))
+}
+
+export function updateWellbeingForDate(data, localDate, wellbeing) {
+  return updateDay(data, localDate, (day) => ({ ...day, wellbeing: { ...day.wellbeing, ...wellbeing } }))
+}
+
+export function updateCycleForDate(data, localDate, cycle) {
+  return updateDay(data, localDate, (day) => ({ ...day, cycle: { ...day.cycle, ...cycle } }))
+}
+
+export function addSymptomForDate(data, localDate, symptom) {
+  return updateDay(data, localDate, (day) => ({ ...day, symptoms: [...day.symptoms, { ...symptom }] }))
+}
+
+export function updateGoals(data, goals) { return { ...data, goals: { ...data.goals, ...goals } } }
+
+export function updateMedications(data, medications) { return { ...data, medications: medications.map((item) => ({ ...item, weekdays: [...item.weekdays] })) } }

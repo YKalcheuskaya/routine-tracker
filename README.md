@@ -1,34 +1,26 @@
 # Routine Tracker
 
-A calm, local-first routine companion for planning small Care, Move, and Focus actions, completing today's steps, and reviewing recent patterns without streak pressure.
+Routine Tracker is a multi-user wellness journal for personally chosen goals and manual check-ins. It helps each account holder record activity, sleep, hydration, meals, mood, stress, energy, reminders, cycle context, and symptoms without presenting a diagnosis or medical advice.
 
-**Live demo:** Pending publication approval.
-**Status:** Local V1.1 release candidate; no remote is configured.
+**Status:** cloud-ready local implementation. The public Supabase and Vercel projects have not been created or deployed yet.
 
-| Desktop Today | Mobile Today |
-| --- | --- |
-| ![Routine Tracker desktop Today dashboard](docs/screenshots/desktop-today.png) | ![Routine Tracker mobile Today dashboard](docs/screenshots/mobile-today.png) |
+## Product experience
 
-| Routine library | Seven-day insights |
-| --- | --- |
-| ![Routine Tracker routine-management view](docs/screenshots/desktop-routines.png) | ![Routine Tracker seven-day insights](docs/screenshots/desktop-insights.png) |
+- A focused Today view with selected-goal progress, compact check-ins, time-aware mountain imagery, and quick additions.
+- A date-specific Calendar journal for corrections and manual records.
+- Weekly Insights that describe recorded trends only; they do not infer medical causes or diagnoses.
+- User-owned targets for steps, water, sleep, bedtime, and meals.
+- A small activity catalogue: walking, running, strength training, cycling, elliptical, swimming, hiking, yoga, Pilates, badminton, and other.
+- Optional medication reminders whose labels and schedules are created by the account holder; “recorded” is a personal confirmation, not dose or treatment advice.
+- Separate self-reports for mood, stress, energy, cycle/menopause context, and symptoms.
 
-## What it does
+## Accounts and privacy model
 
-- Shows AM and PM routines for the device's local calendar day.
-- Persists completed steps by date and keeps historical snapshots stable across later routine edits.
-- Provides a read-only weekly Schedule with complete keyboard-operated tabs.
-- Creates, edits, deletes, and orders custom routine steps across selected weekdays, categories, and AM/PM periods.
-- Summarizes seven days of completion by day and category without streaks or behavioral scores.
-- Exports a readable versioned JSON backup and validates an import before replacing local data.
-- Migrates the original version-1 daily record and recovers safely from malformed or unavailable browser storage.
-- Supports desktop, compact desktop, and mobile layouts with automated accessibility checks.
+The deployed application will use Supabase Auth for email/password sign-up and sign-in. Each account receives one private journal snapshot stored under its authenticated user ID. The included SQL migration enables Row Level Security (RLS), so users can select, insert, update, or delete only their own journal row.
 
-## Product boundary
+The browser uses a Supabase publishable key only. A Supabase service-role or secret key must never be added to Vite variables, committed, or exposed to the client. Signed-out visitors stay in local-only mode; signed-in users sync their private journal and retain a local browser cache for continuity.
 
-This is a fictional portfolio demo. Its Care, Move, and Focus content does not provide medical advice, dosage guidance, health claims, or behavioral recommendations. All routine and history data remains in the browser unless the user explicitly downloads a backup.
-
-The release intentionally has no accounts, backend, cloud sync, external analytics, push notifications, social features, payments, or AI-generated recommendations. Those capabilities would require separate privacy, security, deployment, and operations decisions rather than being small additions to this local-first product.
+This repository does not yet make a legal privacy, HIPAA, clinical, security-certification, or production-availability claim. A public launch requires a reviewed privacy notice, terms, support contact, deletion/export procedure, configured authentication email redirects, and a completed deployment/security review.
 
 ## Run locally
 
@@ -38,6 +30,15 @@ Requires Node.js 22 or later.
 npm ci
 npm run dev
 ```
+
+Without environment variables, the app intentionally runs as a local private preview. To enable account flows for an authorized Supabase project, copy `.env.example` to `.env.local` and provide only:
+
+```bash
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_PUBLISHABLE_KEY=your-publishable-key
+```
+
+Apply `supabase/migrations/20260922130000_create-wellness-snapshots.sql` to that project before enabling sign-up. See [the cloud launch guide](docs/cloud-launch-guide.md).
 
 ## Verify
 
@@ -49,22 +50,12 @@ npm run test:e2e
 npm audit
 ```
 
-With the development server running at `http://127.0.0.1:4173`, regenerate the checked-in screenshots with:
+## Architecture
 
-```bash
-npm run screenshots
-```
+`src/features/tracker/` owns the versioned wellness data contract, mutation helpers, local cache, and import/export validation. `src/features/cloud/` owns the optional Supabase client, account session, and account-scoped snapshot sync. `supabase/migrations/` contains the database-side authorization rules. A cloud setup never changes the client’s safety boundaries around medical claims.
 
-## Architecture and quality
-
-The default fictional routines live in `src/data/routines.js`. Runtime state uses a validated version-2 `localStorage` contract containing the current routine library and dated completion records. Each saved day includes a compact step/category snapshot so later edits cannot silently rewrite historical totals. Import uses the same validator and requires a preview plus explicit confirmation before replacement.
-
-See [the product case study](docs/product-case-study.md), [architecture and test strategy](docs/architecture-and-testing.md), and the detailed [codebase walkthrough](docs/codebase-walkthrough.md).
+The visual language uses dark navy/charcoal surfaces, cyan light, restrained warm accents, and original time-of-day alpine imagery in `src/assets/`.
 
 ## Contribution disclosure
 
-Julia defined the product direction, audience, requirements, acceptance criteria, visual decisions, scope boundaries, review criteria, and validation plan. The implementation was AI-assisted and reviewed through documented tests and product checks. This project is presented as evidence of product ownership, UI/UX judgment, validation, and AI-assisted delivery—not as proof that every line of React code was independently authored.
-
-## Roadmap
-
-Only after user research and a separate privacy/security decision: optional private cross-device sync or opt-in reminders. Neither is implemented or implied by the current release.
+Julia defined the audience, product direction, data boundaries, wellness modules, visual decisions, acceptance criteria, and review decisions. The implementation is AI-assisted and verified with documented automated checks. This project is evidence of product ownership, UI/UX judgment, validation, and AI-assisted delivery—not proof that every line of React code was independently authored.

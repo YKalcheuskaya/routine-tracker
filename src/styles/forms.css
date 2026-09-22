@@ -1,0 +1,15 @@
+.danger-button {
+  background: #f06f70;
+  border-color: #f59191;
+  color: #160d13;
+}
+
+.form-errors { color: #ffb3b3; }
+
+.auth-page { display: grid; min-height: calc(100vh - 7rem); place-items: center; }
+.auth-card { width: min(100%, 31rem); padding: clamp(1.5rem, 5vw, 2.4rem); border: 1px solid rgba(176, 233, 255, .2); border-radius: 1.3rem; background: linear-gradient(145deg, rgba(16, 41, 59, .96), rgba(6, 19, 31, .96)); box-shadow: 0 1.5rem 4rem rgba(0, 0, 0, .25); }
+.auth-card h1 { margin: .2rem 0 .7rem; font-size: clamp(2rem, 5vw, 3.3rem); letter-spacing: -.06em; }
+.auth-card > p { color: #b5cfda; line-height: 1.55; }
+.auth-card form { display: grid; gap: .85rem; margin: 1.3rem 0; }
+.auth-card label { display: grid; gap: .4rem; color: #d9eff5; font-weight: 700; }
+.text-button { margin-top: .4rem; color: #93e7fa; text-decoration: underline; text-underline-offset: .22rem; }

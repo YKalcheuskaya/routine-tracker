@@ -2,12 +2,28 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import TodayDashboard from './TodayDashboard'
-
-const now = new Date(2026, 8, 13, 12)
-const routine = { id: 'am-care', category: 'care', period: 'am', weekdays: ['sunday'], title: 'Gentle start', description: 'desc', steps: [{ id: 'one', title: 'Open a window' }] }
-const progress = { completedStepIds: [], recovered: false, available: true }
+import { emptyDay } from '../wellness/wellness-model'
 
 describe('Today dashboard', () => {
-  it('renders AM and PM sections and toggles a step', async () => { const onToggle = vi.fn(); render(<TodayDashboard routines={[routine]} progress={progress} onToggle={onToggle} now={now} />); await userEvent.click(screen.getByRole('checkbox', { name: 'Complete: Open a window' })); expect(onToggle).toHaveBeenCalledWith('am-care:one'); expect(screen.getByText('No routines are planned for this part of the day yet.')).toBeInTheDocument() })
-  it('shows a completion state when all displayed steps are done', () => { render(<TodayDashboard routines={[routine]} progress={{ ...progress, completedStepIds: ['am-care:one'] }} onToggle={() => {}} now={now} />); expect(screen.getAllByText('All done!').length).toBeGreaterThan(0) })
+  it('shows every goal and check-in in compact groups', () => {
+    const day = emptyDay()
+    day.steps = 8000
+    day.waterMl = 1200
+    render(<TodayDashboard day={day} goals={{ steps: 10000, waterMl: 2000, sleepMinutes: 480, meals: 3 }} medications={[]} localDate="2026-09-21" onUpdateMetrics={() => {}} onToggleMedication={() => {}} onNavigate={() => {}} available />)
+    expect(screen.getByRole('heading', { name: 'Goals' })).toBeInTheDocument()
+    expect(screen.getByText('Activity')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Check-ins' })).toBeInTheDocument()
+    expect(screen.getAllByText('Mood & stress')).toHaveLength(2)
+  })
+
+  it('offers a quick hydration action and routes full edits to Calendar', async () => {
+    const updateMetrics = vi.fn()
+    const navigate = vi.fn()
+    render(<TodayDashboard day={emptyDay()} goals={{ steps: 10000, waterMl: 2000, sleepMinutes: 480, meals: 3 }} medications={[]} localDate="2026-09-21" onUpdateMetrics={updateMetrics} onToggleMedication={() => {}} onNavigate={navigate} available />)
+    await userEvent.click(screen.getByRole('button', { name: /quick add/i }))
+    await userEvent.click(screen.getByRole('button', { name: /250 ml water/i }))
+    expect(updateMetrics).toHaveBeenCalledWith('2026-09-21', { waterMl: 250 })
+    await userEvent.click(screen.getByRole('button', { name: /view full day/i }))
+    expect(navigate).toHaveBeenCalledWith('calendar')
+  })
 })

@@ -1,108 +1,107 @@
-/**
- * React state adapter for the pure tracker-storage module. It exposes one shared
- * state-and-actions API to the application, persists every accepted mutation, and
- * refreshes the local date when time or browser visibility changes.
- */
-import { useCallback, useEffect, useMemo, useState } from 'react'
+/** Connects React state to the versioned local wellness journal. */
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { getLocalDate } from '../completion/date'
-import { createTrackerData, loadTrackerData, saveTrackerData, toggleStepForDate } from './tracker-storage'
+import {
+  addActivityForDate, addMealForDate, addSymptomForDate, createTrackerData,
+  loadTrackerData, removeEntryForDate, saveTrackerData, toggleMedicationForDate,
+  updateCycleForDate, updateGoals, updateMedications, updateMetricsForDate,
+  updateSleepForDate, updateWellbeingForDate,
+} from './tracker-storage'
+import { cloudConfigured } from '../cloud/supabase-client'
+import { loadCloudSnapshot, saveCloudSnapshot } from '../cloud/cloud-storage'
 
-function browserStorage() {
-  try {
-    return window.localStorage
-  } catch {
-    return null
-  }
-}
+function browserStorage() { try { return window.localStorage } catch { return null } }
+function recordId(prefix) { return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}` }
 
-export function useTrackerData(defaultRoutines, now = () => new Date()) {
+export function useTrackerData(defaultRoutines, userId = null, now = () => new Date()) {
   const storage = browserStorage()
   const [localDate, setLocalDate] = useState(() => getLocalDate(now()))
-  const [state, setState] = useState(() => storage ? loadTrackerData(storage, defaultRoutines) : {
-    data: createTrackerData(defaultRoutines), recovered: false, migrated: false, available: false,
-  })
+  const [state, setState] = useState(() => storage ? loadTrackerData(storage, defaultRoutines) : { data: createTrackerData(defaultRoutines), recovered: false, migrated: false, available: false })
+  const [cloudStatus, setCloudStatus] = useState(userId && cloudConfigured ? 'connecting' : 'local')
+  const cloudReady = useRef(false)
+  const dataRef = useRef(state.data)
+
+  useEffect(() => { dataRef.current = state.data }, [state.data])
 
   useEffect(() => {
-    // A migrated record is written back once so later launches use only V2.
     if (!state.migrated || !storage) return
     const available = saveTrackerData(storage, state.data)
     setState((current) => ({ ...current, migrated: false, available }))
   }, [state.data, state.migrated, storage])
 
-  const refreshForDate = useCallback(() => setLocalDate(getLocalDate(now())), [now])
+  useEffect(() => {
+    cloudReady.current = false
+    if (!userId || !cloudConfigured) { setCloudStatus('local'); return undefined }
+    let active = true
+    setCloudStatus('connecting')
+    async function connectAccountJournal() {
+      try {
+        const snapshot = await loadCloudSnapshot(userId)
+        if (!active) return
+        if (snapshot) {
+          setState((current) => ({ ...current, data: snapshot, available: storage ? saveTrackerData(storage, snapshot) : false }))
+        } else {
+          await saveCloudSnapshot(userId, dataRef.current)
+        }
+        if (!active) return
+        cloudReady.current = true
+        setCloudStatus('synced')
+      } catch {
+        if (active) setCloudStatus('error')
+      }
+    }
+    connectAccountJournal()
+    return () => { active = false }
+  }, [storage, userId])
 
   useEffect(() => {
-    // Focus and visibility checks cover sleeping/background tabs; the interval
-    // covers an open tab that remains active across local midnight.
+    if (!userId || !cloudConfigured || !cloudReady.current) return
+    saveCloudSnapshot(userId, state.data).then(() => setCloudStatus('synced')).catch(() => setCloudStatus('error'))
+  }, [state.data, userId])
+
+  const refreshForDate = useCallback(() => setLocalDate(getLocalDate(now())), [now])
+  useEffect(() => {
     const interval = window.setInterval(refreshForDate, 60_000)
     window.addEventListener('focus', refreshForDate)
     document.addEventListener('visibilitychange', refreshForDate)
-    return () => {
-      window.clearInterval(interval)
-      window.removeEventListener('focus', refreshForDate)
-      document.removeEventListener('visibilitychange', refreshForDate)
-    }
+    return () => { window.clearInterval(interval); window.removeEventListener('focus', refreshForDate); document.removeEventListener('visibilitychange', refreshForDate) }
   }, [refreshForDate])
 
-  const toggle = useCallback((stepId) => {
+  const mutate = useCallback((transform) => {
     setState((current) => {
-      const data = toggleStepForDate(current.data, localDate, stepId)
-      const available = storage ? saveTrackerData(storage, data) : false
-      return { ...current, data, available }
-    })
-  }, [localDate, storage])
-
-  const saveRoutine = useCallback((routine) => {
-    setState((current) => {
-      const exists = current.data.routines.some((item) => item.id === routine.id)
-      const routines = exists ? current.data.routines.map((item) => item.id === routine.id ? routine : item) : [...current.data.routines, routine]
-      const data = { ...current.data, routines }
+      const data = transform(current.data)
       const available = storage ? saveTrackerData(storage, data) : false
       return { ...current, data, available }
     })
   }, [storage])
 
-  const deleteRoutine = useCallback((routineId) => {
-    setState((current) => {
-      const data = { ...current.data, routines: current.data.routines.filter((routine) => routine.id !== routineId) }
-      const available = storage ? saveTrackerData(storage, data) : false
-      return { ...current, data, available }
-    })
-  }, [storage])
+  const actions = useMemo(() => ({
+    updateMetrics: (date, values) => mutate((data) => updateMetricsForDate(data, date, values)),
+    updateSleep: (date, values) => mutate((data) => updateSleepForDate(data, date, values)),
+    addActivity: (date, values) => mutate((data) => addActivityForDate(data, date, { ...values, id: recordId('activity') })),
+    addMeal: (date, values) => mutate((data) => addMealForDate(data, date, { ...values, id: recordId('meal') })),
+    removeEntry: (date, collection, id) => mutate((data) => removeEntryForDate(data, date, collection, id)),
+    toggleMedication: (date, medicationId) => mutate((data) => toggleMedicationForDate(data, date, medicationId)),
+    updateWellbeing: (date, values) => mutate((data) => updateWellbeingForDate(data, date, values)),
+    updateCycle: (date, values) => mutate((data) => updateCycleForDate(data, date, values)),
+    addSymptom: (date, values) => mutate((data) => addSymptomForDate(data, date, { ...values, id: recordId('symptom') })),
+    saveGoals: (values) => mutate((data) => updateGoals(data, values)),
+    saveMedications: (values) => mutate((data) => updateMedications(data, values)),
+    importData: (data) => mutate(() => data),
+  }), [mutate])
 
-  const restoreDemoRoutines = useCallback(() => {
-    setState((current) => {
-      const data = { ...current.data, routines: createTrackerData(defaultRoutines).routines }
-      const available = storage ? saveTrackerData(storage, data) : false
-      return { ...current, data, available }
-    })
-  }, [defaultRoutines, storage])
-
-  const importData = useCallback((data) => {
-    setState((current) => {
-      const available = storage ? saveTrackerData(storage, data) : false
-      return { ...current, data, recovered: false, migrated: false, available }
-    })
-  }, [storage])
-
-  const completedStepIds = useMemo(
-    () => state.data.days[localDate]?.completedStepIds ?? [],
-    [localDate, state.data.days],
-  )
-
+  const day = state.data.days[localDate]
   return useMemo(() => ({
-    routines: state.data.routines,
     data: state.data,
     days: state.data.days,
+    goals: state.data.goals,
+    medications: state.data.medications,
     localDate,
-    completedStepIds,
+    day,
     recovered: state.recovered,
     available: state.available,
-    toggle,
-    saveRoutine,
-    deleteRoutine,
-    restoreDemoRoutines,
-    importData,
+    cloudStatus,
     refreshForDate,
-  }), [completedStepIds, deleteRoutine, importData, localDate, refreshForDate, restoreDemoRoutines, saveRoutine, state, toggle])
+    ...actions,
+  }), [actions, cloudStatus, day, localDate, refreshForDate, state])
 }
