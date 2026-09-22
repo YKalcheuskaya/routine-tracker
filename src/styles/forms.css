@@ -13,3 +13,11 @@
 .auth-card form { display: grid; gap: .85rem; margin: 1.3rem 0; }
 .auth-card label { display: grid; gap: .4rem; color: #d9eff5; font-weight: 700; }
 .text-button { margin-top: .4rem; color: #93e7fa; text-decoration: underline; text-underline-offset: .22rem; }
+
+/* Give save actions room after the last field or result state. */
+.journal-action { margin-top: .75rem; }
+.sleep-summary-row { display: flex; align-items: center; justify-content: space-between; gap: .75rem; margin: 1rem 0 0; }
+.sleep-summary-row .sleep-inline { margin: 0; }
+.sleep-status { flex: 0 0 auto; padding: .28rem .56rem; border: 1px solid rgba(155, 199, 215, .36); border-radius: 999px; color: #c9f4fb; font-size: .76rem; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
+.sleep-status--met { border-color: rgba(92, 226, 198, .52); background: rgba(34, 166, 143, .16); color: #9ef1dd; }
+.sleep-status--fair { border-color: rgba(255, 204, 118, .5); background: rgba(197, 137, 33, .15); color: #ffe0a1; }
