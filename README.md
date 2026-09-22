@@ -38,14 +38,7 @@ npm run supabase:start
 npm run dev:local
 ```
 
-Open `http://127.0.0.1:5173`. The untracked `.env.local` is configured with the local Supabase API and its local publishable key. It is not a cloud credential.
-
-To demonstrate against a separate Julia-controlled Supabase test project later, copy `.env.example` to `.env.local` and provide only:
-
-```bash
-VITE_SUPABASE_URL=https://your-project.supabase.co
-VITE_SUPABASE_PUBLISHABLE_KEY=your-publishable-key
-```
+Open `http://127.0.0.1:5173`. The untracked `.env.local` is configured with the local Supabase API and its local publishable key. It is not a cloud credential. This repository intentionally documents and supports the local demonstration only.
 
 The local CLI applies `supabase/migrations/20260922130000_create-wellness-snapshots.sql` during `supabase db reset`. See [the private demo guide](docs/private-demo-guide.md).
 
@@ -56,6 +49,7 @@ npm run lint
 npm test
 npm run build
 npm run test:e2e
+npm run test:local-auth
 npm audit
 ```
 

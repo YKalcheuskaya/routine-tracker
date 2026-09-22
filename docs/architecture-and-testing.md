@@ -2,73 +2,80 @@
 
 ## Product structure
 
-Routine Tracker is a client-side React application with five views:
+Routine Tracker is a manual-first React wellness journal with five product views:
 
-- **Today:** the current local date's AM/PM routines and completion controls.
-- **Schedule:** a read-only weekday preview using a keyboard-operated ARIA tabs pattern.
-- **Routines:** accessible CRUD, weekday/period/category selection, ordered steps, validation, and destructive confirmations.
-- **Insights:** derived seven-day and category summaries without streak scoring.
-- **Data:** local JSON backup plus validated, previewed import.
+- **Today:** a compact, time-aware view of today's selected goals and private check-ins.
+- **Calendar:** the complete dated journal for activity, water, sleep, activities, meals, medication confirmations, mood, stress, energy, cycle context, and symptoms.
+- **Insights:** descriptive seven-day goal, sleep, activity, hydration, and self-report summaries.
+- **Plans:** editable personal goals and user-created medication reminder labels and schedules.
+- **Data:** local JSON backup and a reviewed import flow.
 
-`src/data/routines.js` supplies fictional demo routines. Feature modules own routine validation, completion, Schedule behavior, insights, and versioned persistence. `App.jsx` coordinates navigation and passes the single local tracker state into each view.
+The optional **Account** view is a local Supabase Auth demonstration. It supports email/password registration and sign-in on this machine only. A signed-in account receives one journal snapshot identified by its authenticated user ID; signed-out use remains local to the browser.
 
-## Versioned local data
+`src/app/App.jsx` composes the views. `src/features/tracker/` owns the versioned journal contract and mutations. `src/features/wellness/` owns the empty-day shape and pure wellness calculations. `src/features/cloud/` owns the optional authentication and account-scoped sync boundary.
 
-Stable routine and step IDs make completion references independent of display text. The version-2 record stores the editable routine library and dated history:
+## Journal model and persistence
+
+The version-3 journal keeps editable goals and reminders alongside dated manual entries:
 
 ```json
 {
-  "version": 2,
-  "routines": [
-    {
-      "id": "am-care",
-      "category": "care",
-      "period": "am",
-      "weekdays": ["monday"],
-      "title": "Gentle start",
-      "description": "A small reset before the day begins.",
-      "steps": [{ "id": "open-window", "title": "Open a window" }]
-    }
-  ],
+  "version": 3,
+  "goals": { "steps": 10000, "waterMl": 2000, "sleepMinutes": 480 },
+  "medications": [{ "id": "reminder-1", "label": "Daily reminder", "time": "08:00", "weekdays": [] }],
   "days": {
-    "2026-09-21": {
-      "completedStepIds": ["am-care:open-window"],
-      "stepSnapshot": [{ "id": "am-care:open-window", "category": "care" }]
+    "2026-09-22": {
+      "steps": 6800,
+      "waterMl": 2000,
+      "sleep": { "bedtime": "22:30", "wakeTime": "06:30", "feeling": "Rested" },
+      "activities": [],
+      "meals": [],
+      "wellbeing": { "mood": "Good", "stress": 3, "energy": 7 },
+      "cycle": { "day": 7 },
+      "symptoms": [],
+      "medicationLogs": { "reminder-1": true }
     }
   }
 }
 ```
 
-The daily snapshot is intentionally smaller than a complete routine copy. It preserves the independent inputs needed for historical total and category calculations while allowing the editable library to change.
+Entries are manually entered; the app does not claim to measure sleep stages, diagnose symptoms, prescribe medication, or infer clinical meaning. The daily progress score includes only the user's explicit steps, water, sleep, and meal goals. Medication, mood, stress, energy, cycle, and symptoms are visible as private context and are not scored.
 
-## Migration, validation, and recovery
+The browser cache uses `localStorage` for continuity. Invalid or legacy version-1/version-2 data is normalized or replaced with a clean demo record rather than crashing. Import accepts only a valid version-3 journal and requires a review before it replaces the current journal.
 
-- A valid version-1 daily record is migrated into version 2 and saved back automatically.
-- Duplicate completion IDs are removed during migration and only IDs available in that day's demo snapshot survive.
-- Stored routines require unique IDs, valid categories and periods, at least one valid weekday, and at least one uniquely identified step.
-- Malformed JSON or an invalid contract falls back to clean demo data with a visible recovery notice.
-- Storage access or write failure degrades to session-only behavior instead of crashing.
-- Import accepts only a valid version-2 contract, shows routine/day/version counts, and does not replace current data until confirmed.
+## Local account demonstration
 
-## Derived insights
+When local Supabase configuration is present, `useAuth` observes the email/password session. `useTrackerData` then loads the authenticated account's `wellness_snapshots.journal` record, or creates a clean one for a new account. Journal changes are cached locally and saved to that account's snapshot.
 
-Seven-day insights are pure calculations over saved step snapshots. The current day uses the active routine library when no completion has yet been stored; prior dates are never inferred from today's editable schedule. Category totals and daily percentages therefore have explicit, testable inputs.
+The SQL migration in `supabase/migrations/` enables Row Level Security. Its policies allow a signed-in user to select, insert, update, or delete only the row whose `user_id` equals their authenticated ID. The browser receives a publishable key only; a service-role key is never part of the client configuration.
+
+This is a localhost engineering demonstration, not a deployed service. It makes no production privacy, HIPAA, clinical, availability, support, or security-certification claim.
 
 ## Test pyramid
 
 | Layer | Purpose |
 | --- | --- |
-| Vitest unit tests | Local dates, versioned validation and migration, routine normalization, storage recovery, history dates, daily/category calculations. |
-| React Testing Library | Today states, Schedule semantics and arrow-key behavior, routine-form validation, destructive confirmations, and test isolation. |
-| Playwright | Same-day persistence, responsive containment, Schedule read-only behavior, full routine CRUD, JSON download/import review, insights, date reset, and axe checks in desktop and mobile projects. |
-| CI | Node 22 clean install, Chromium install, lint, unit/component tests, production build, both browser projects, and high-severity dependency audit. |
+| Vitest unit and component tests | Dates, version-3 validation and migration, journal mutations, wellness calculations, rendered dashboard states, forms, and controls. |
+| Playwright | Desktop and mobile journeys for manual logging, plans, import review, insights, accessibility, and responsive behavior. |
+| Local account Playwright test | Two disposable accounts register locally; one records water and the other starts with an empty journal, proving the observable account-isolation flow. |
+| Manual review | Visual hierarchy, wording, local account flow, and the explicit medical/privacy boundaries. |
+
+Run the core checks with:
+
+```bash
+npm run lint
+npm test
+npm run build
+npm run test:e2e
+npm run test:local-auth
+```
+
+`npm run test:local-auth` requires the local Supabase Docker stack. The private setup and reset procedure are in [private-demo-guide.md](private-demo-guide.md).
 
 ## Accessibility and responsive review
 
-Native checkboxes, labels, selects, buttons, status/alert roles, confirmation dialogs, visible focus treatment, and a skip link provide the interaction foundation. Weekday Schedule controls implement `tablist`, `tab`, `tabpanel`, roving focus, and Left/Right/Home/End keys. The mobile primary navigation wraps so every view remains visible without horizontal page scrolling.
-
-Automated axe checks complement—not replace—manual keyboard, content, desktop, compact-desktop, and mobile review. The screenshot command reproduces the documented 1280 × 720 and 390 × 844 review surfaces.
+The app uses native form controls, explicit labels, buttons, visible focus treatment, and a skip link. The browser journey includes automated axe checks on desktop and mobile surfaces. Automated checks complement manual review, especially for visual density and understandable health-adjacent wording.
 
 ## Delivery boundary
 
-The application has no network data layer. JSON export writes a local download; import reads a user-selected local file in the browser. A future account or sync feature would require a separate threat model, authentication/authorization design, privacy policy, backend, deployment, and operations evidence.
+Routine Tracker remains local. No cloud Supabase project, public URL, public repository, real-user invitation, or production operation exists. Any real launch would require a separate scope including privacy/legal review, security/threat modeling, account recovery and deletion policies, operational monitoring, support, and deployment verification.

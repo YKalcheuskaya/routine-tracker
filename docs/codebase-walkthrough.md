@@ -2,251 +2,97 @@
 
 ## How to use this guide
 
-Use this document as a reading map, not as a script to memorize. Begin with the product story, follow one user action through the code, and only then study individual helpers. During an interview, explain the decisions and evidence you understand; do not claim independent authorship of AI-assisted implementation.
-
-Routine Tracker does not use Java-style classes. Its main building blocks are:
-
-- **React components:** functions that return interface elements.
-- **A custom hook:** a function that connects React state to persistence behavior.
-- **Pure domain functions:** functions whose output depends only on their inputs, which makes them easy to test.
-- **Configuration and automation files:** build, lint, browser-test, CI, and screenshot instructions.
+Read this as a map for a live explanation, not as a script to memorize. Start with the product boundary, follow one visible action through the code, then open the matching test. Explain only decisions and results you understand. The implementation is AI-assisted; Julia's contribution is product direction, requirements, acceptance, review, and validation.
 
 ## Recommended reading order
 
-1. `README.md` — product purpose, capabilities, boundaries, commands, and contribution disclosure.
-2. `docs/product-case-study.md` — audience, user journeys, decisions, and rejected alternatives.
-3. `docs/architecture-and-testing.md` — storage contract, migration, test layers, and delivery boundary.
-4. `src/app/App.jsx` — the composition root and the best map of the five views.
-5. `src/features/tracker/use-tracker-data.js` — the shared state and action API used by the views.
-6. `src/features/tracker/tracker-storage.js` — validation, migration, persistence, snapshots, and immutable updates.
-7. One complete user flow, starting with Today and then moving to routine editing, insights, or import.
-8. Tests that prove the behavior, beginning with the pure unit tests and ending with `e2e/routine-tracker.spec.js`.
+1. `README.md` — purpose, local-only boundary, commands, and account safety notes.
+2. `docs/product-case-study.md` — user journey, product decisions, and explicit limits.
+3. `docs/architecture-and-testing.md` — version-3 journal, local account model, and test strategy.
+4. `src/app/App.jsx` — composition root and navigation.
+5. `src/features/tracker/use-tracker-data.js` — shared journal state, local cache, account transition, and mutations.
+6. `src/features/tracker/tracker-storage.js` — versioned validation, migration, and journal updates.
+7. `src/features/cloud/` — optional local Supabase session and snapshot sync.
+8. One complete browser flow plus its Playwright coverage.
 
 ## Runtime architecture
 
 ```mermaid
 flowchart TD
     Browser[index.html and src/main.jsx] --> App[src/app/App.jsx]
-    Defaults[src/data/routines.js] --> Hook[useTrackerData]
-    Storage[(localStorage)] <--> Persistence[tracker-storage.js]
-    Hook <--> Persistence
-    Hook --> App
-    App --> Today[Today dashboard]
-    App --> Schedule[Weekly schedule]
-    App --> Manager[Routine manager]
-    App --> Insights[Seven-day insights]
-    App --> Data[Import and export]
-    Manager --> Model[routine-model.js]
-    Insights --> Calculations[history-insights.js]
-    Today --> Selectors[selectors.js]
-    Schedule --> Selectors
+    App --> Auth[useAuth]
+    Auth --> SupabaseAuth[Local Supabase Auth]
+    App --> Tracker[useTrackerData]
+    Cache[(Browser localStorage)] <--> Tracker
+    Tracker <--> Cloud[Account-scoped snapshot adapter]
+    Cloud <--> Snapshot[(Local Postgres + RLS)]
+    Tracker --> Today[Today]
+    Tracker --> Calendar[Calendar]
+    Tracker --> Insights[Insights]
+    Tracker --> Plans[Plans]
+    Tracker --> Data[Data import/export]
 ```
 
-`App.jsx` is the composition boundary: it decides which view is visible and passes state or callbacks into that view. It does not validate routines, calculate history, or parse browser storage. Those responsibilities live in dedicated modules.
+`App.jsx` only selects a view and wires callbacks. It does not calculate sleep duration, mutate journal entries, parse stored data, or write Supabase rows.
 
-## Data model
+## Journal and account boundary
 
-The persisted object has one explicit version and two major collections:
+`tracker-storage.js` normalizes a version-3 journal with editable goals, medication reminder labels, and date-indexed manual entries. `wellness-model.js` provides a safe empty day and pure calculations such as manually logged sleep duration and daily goal progress.
 
-```json
-{
-  "version": 2,
-  "routines": [],
-  "days": {
-    "2026-09-21": {
-      "completedStepIds": [],
-      "stepSnapshot": []
-    }
-  }
-}
-```
+`useTrackerData` writes every mutation to browser cache. If an authenticated local account is available, it also loads or saves the account's single `wellness_snapshots` record. On sign-out it replaces the active account's cached state with a clean guest journal, which prevents the next visitor from seeing the previous account's local cache.
 
-`routines` is the current editable library. `days` is historical evidence indexed by local calendar date. A daily `stepSnapshot` retains only the stable step ID and category required by reporting. This means editing or deleting a routine tomorrow does not change yesterday's totals.
+The cloud adapter never owns a service-role secret. The SQL migration applies RLS so a user can only access the row tied to that authenticated user's ID. This is verified locally with two disposable accounts; it is not a production security certification.
 
-A completed-step ID combines a routine ID and step ID, for example `am-care:open-window`. Display text is not used as an identity because users can edit it.
+## Walkthrough flow: register, log, and return
 
-## User flow 1: application startup
+1. `AuthView` gathers an email and password and calls `useAuth.signUp` or `useAuth.signIn`.
+2. `useAuth` delegates the session operation to the optional Supabase browser client.
+3. The session user ID reaches `useTrackerData` through `App.jsx`.
+4. `useTrackerData` calls `loadCloudSnapshot(userId)`. A new account receives a clean, normalized journal and one account-scoped snapshot is created.
+5. In `CalendarView`, a form calls a mutation such as `onUpdateMetrics`, `onUpdateSleep`, `onAddActivity`, or `onAddMeal`.
+6. The mutation delegates to a pure `tracker-storage.js` helper, updates React state, updates local cache, and saves the normalized snapshot when signed in.
+7. `TodayDashboard` and `InsightsView` derive their visible summaries from the same dated journal.
+8. After sign-out and sign-in, the adapter loads the same account snapshot rather than another account's cache.
 
-1. `index.html` provides the browser root element.
-2. `src/main.jsx` mounts `App` inside React `StrictMode` and loads global styles.
-3. `App.jsx` calls `useTrackerData(routines)` with the fictional starter library.
-4. `use-tracker-data.js` asks `tracker-storage.js` to load and validate the saved record.
-5. The loader returns one of four meaningful states: clean V2 data, migrated V1 data, recovered demo data after invalid storage, or session-only data when storage is unavailable.
-6. `App.jsx` shows Today by default and passes the hook's routines, completed IDs, status flags, and toggle action into the dashboard.
+## High-value code paths
 
-## User flow 2: completing a Today step
-
-1. `TodayDashboard.jsx` uses the device-local weekday and `selectors.js` to choose today's AM and PM routines.
-2. `RoutineCard.jsx` creates a stable ID from the routine and step IDs.
-3. Checking the native checkbox calls the `toggle` action exposed by `useTrackerData`.
-4. The hook calls the pure `toggleStepForDate` function.
-5. `toggleStepForDate` rejects IDs that are not available today, updates a copied data object, and stores today's compact snapshot.
-6. The hook attempts to save the new object to `localStorage` and updates React state.
-7. React renders the new card and daily totals. `ProgressPill` announces the change through an `aria-live` region.
-
-## User flow 3: creating or editing a routine
-
-1. `RoutineManager` owns only temporary UI state: whether the form is open, the current draft, validation messages, and confirmation dialogs.
-2. On submit, it sends the draft to `routineFromDraft` in `routine-model.js`.
-3. The pure model trims input, checks required values and duplicate step names, and creates collision-safe IDs for new routines and steps.
-4. The manager reports the accepted routine through `onSave`.
-5. `App.jsx` connected `onSave` to the hook's `saveRoutine` action.
-6. The hook replaces an existing routine by ID or appends a new one, persists the complete V2 record, and triggers a render.
-
-Delete and restore operations require confirmation. They replace only the current routine library; already saved daily snapshots remain available to Insights.
-
-## User flow 4: migration and recovery
-
-`tracker-storage.js` is deliberately defensive because browser storage is an external boundary:
-
-1. Read access is wrapped in `try/catch` because privacy settings can block it.
-2. JSON parsing is isolated from contract validation.
-3. A valid V1 record is converted into V2 using the known starter routine snapshot for that date.
-4. Duplicate or unavailable completed IDs are removed during migration.
-5. Invalid JSON or an invalid contract returns clean demo data plus a recovery flag.
-6. The hook writes a successful migration back once, so the next launch reads V2 directly.
-
-The app does not silently claim that unavailable storage succeeded. It continues in memory and shows a session-only notice.
-
-## User flow 5: seven-day insights
-
-`history-insights.js` performs all calculations without React or browser APIs:
-
-- It creates seven local dates ending with today.
-- For today only, it may infer available steps from the current schedule when no record has been stored yet.
-- For prior days, it uses only saved snapshots; missing history stays missing.
-- It produces daily completion counts, percentages, recorded-day counts, and category totals.
-
-`InsightsView` is only the presentation layer. This separation lets unit tests verify calculations without rendering a page.
-
-## User flow 6: export and import
-
-`DataManagement` and `tracker-storage.js` form a two-stage safety boundary:
-
-- Export normalizes the current V2 object, serializes readable JSON, and creates a local browser download.
-- File selection reads the selected local file and validates its complete contract.
-- Invalid content shows an error and leaves current state unchanged.
-- Valid content is summarized as a preview.
-- Replacement occurs only after the user presses the explicit confirmation button.
-
-The application has no upload request, account, backend, analytics service, or cloud sync.
-
-## Folder and file map
-
-### Product and delivery documentation
-
-| Path | Responsibility |
+| Path | What to explain |
 | --- | --- |
-| `README.md` | Public entry point: purpose, screenshots, boundaries, setup, verification, and contribution disclosure. |
-| `docs/product-case-study.md` | Product problem, journeys, decisions, rejected alternatives, and acceptance evidence. |
-| `docs/architecture-and-testing.md` | Technical architecture, V2 schema, migration, insights, test pyramid, and delivery boundary. |
-| `docs/codebase-walkthrough.md` | Guided reading map and interaction flows. |
-| `docs/screenshots/` | Reproducible portfolio images generated from fictional state. |
-
-### Application entry and composition
-
-| Path | Responsibility |
-| --- | --- |
-| `index.html` | Minimal HTML document and React mount point. |
-| `src/main.jsx` | Browser bootstrap and global stylesheet import. |
-| `src/app/App.jsx` | Navigation, feature composition, and shared-state wiring. |
-| `src/styles/index.css` | Design system, layout, states, accessibility focus, and responsive rules. |
-
-### Shared data and presentation
-
-| Path | Responsibility |
-| --- | --- |
-| `src/data/routines.js` | Fictional starter routines and category labels/icons. |
-| `src/components/ProgressPill.jsx` | Reusable accessible completion summary. |
-
-### Today and Schedule
-
-| Path | Responsibility |
-| --- | --- |
-| `src/features/completion/date.js` | Local date, weekday, and display formatting. |
-| `src/features/dashboard/TodayDashboard.jsx` | Today's routine selection, recovery notices, and overall progress. |
-| `src/features/dashboard/PeriodSection.jsx` | AM/PM grouping and empty state. |
-| `src/features/dashboard/RoutineCard.jsx` | Interactive steps and per-routine progress. |
-| `src/features/schedule/ScheduleView.jsx` | Read-only week preview and accessible tabs behavior. |
-| `src/features/routines/selectors.js` | Shared filtering and progress calculations. |
-
-### Routine management
-
-| Path | Responsibility |
-| --- | --- |
-| `src/features/routines/routine-manager.jsx` | Form state, step ordering, library cards, and destructive confirmations. |
-| `src/features/routines/routine-model.js` | Draft validation, normalization, and stable ID creation. |
-
-### Persistence, portability, and insights
-
-| Path | Responsibility |
-| --- | --- |
-| `src/features/tracker/tracker-storage.js` | V2 contract, validation, V1 migration, normalization, storage access, snapshots, and toggling. |
-| `src/features/tracker/use-tracker-data.js` | React adapter for shared state, persistence actions, and local-date refresh. |
-| `src/features/tracker/data-management.jsx` | Local JSON download, file review, import preview, and confirmation. |
-| `src/features/insights/history-insights.js` | Pure seven-day and category calculations. |
-| `src/features/insights/insights-view.jsx` | Read-only insight cards, rows, and accessible progress bars. |
-
-### Tests and automation
-
-| Path | Responsibility |
-| --- | --- |
-| `src/**/*.test.js(x)` | Pure unit and React component tests colocated with the behavior they verify. |
-| `src/test/setup.js` | Shared DOM assertions and per-test React cleanup. |
-| `e2e/routine-tracker.spec.js` | Complete user journeys, persistence, responsive containment, date behavior, and axe scans. |
-| `scripts/capture-screenshots.mjs` | Deterministic desktop/mobile portfolio captures. |
-| `.github/workflows/verify.yml` | Future remote clean install, lint, tests, build, browser checks, and dependency audit. |
-
-### Tool configuration
-
-| Path | Responsibility |
-| --- | --- |
-| `package.json` / `package-lock.json` | Runtime/tool dependencies and exact repeatable dependency resolution. |
-| `vite.config.js` | React build and Vitest DOM-test environment. |
-| `playwright.config.js` | Local test server plus desktop and mobile Chromium projects. |
-| `eslint.config.js` | React and Hooks static-analysis rules. |
-| `tailwind.config.js` / `postcss.config.js` | CSS processing configuration. Most product styling is explicit CSS. |
+| `src/app/App.jsx` | The view boundary and the separation between session state and journal state. |
+| `src/features/calendar/calendar-view.jsx` | Manual forms are intentionally explicit; sleep is a schedule entry, not a biometric measurement. |
+| `src/features/dashboard/TodayDashboard.jsx` | Today is compact; it exposes progress and small actions rather than duplicating the entire journal. |
+| `src/features/insights/wellness-insights.js` | Insights are pure descriptions of recorded entries, not diagnoses or causation claims. |
+| `src/features/plans/plans-view.jsx` | Goals and reminder labels are chosen by the account holder. |
+| `src/features/tracker/tracker-storage.js` | Versioning, validation, reviewed import, and immutable mutation helpers. |
+| `src/features/tracker/use-tracker-data.js` | Cache continuity, clean guest state after sign-out, and optional account sync. |
+| `src/features/cloud/cloud-storage.js` | One normalized journal snapshot per authenticated local account. |
+| `supabase/migrations/20260922130000_create-wellness-snapshots.sql` | RLS ownership boundary at the database layer. |
+| `e2e/local-auth.spec.js` | Observable account registration and journal-isolation proof. |
 
 ## Test strategy
 
-The project uses the smallest useful layer for each risk:
+- **Unit/component tests:** journal model, version migration, manual-entry mutations, insight calculations, forms, and display states.
+- **Browser tests:** desktop/mobile flows, manual logging, reminder confirmation, import review, accessibility scans, and responsive behavior.
+- **Local account test:** two disposable accounts prove that a journal update in one does not appear in the other.
+- **Manual review:** visual density, health-adjacent language, complete signup/signout/signin cycle, and local-only boundaries.
 
-- **Pure unit tests** cover dates, schema validation, migration, normalization, snapshots, stable IDs, and historical calculations.
-- **Component tests** cover rendered state, interaction, form errors, confirmation behavior, and Schedule keyboard semantics.
-- **Playwright tests** cover journeys that depend on a real browser: reload persistence, CRUD across views, downloads/imports, viewport containment, local-date reset, and accessibility scans.
-- **Manual review** covers visual hierarchy, content tone, responsive fit, and whether public documentation matches the product.
+Run the current local checks with:
 
-The important quality principle is not the number of tests. It is the mapping from a product risk to an independent check and observable result.
+```bash
+npm run lint
+npm test
+npm run build
+npm run test:e2e
+npm run test:local-auth
+```
 
-## How to present the repository in an interview
+## How to present it in an interview
 
-Use this order rather than opening random source files:
+1. Open with the problem: a progress-oriented manual journal, not a wearable or medical product.
+2. Demonstrate a fictional account registering and recording a day in Calendar.
+3. Show the compact Today progress and one descriptive Insight.
+4. Explain the account boundary: email/password session, one snapshot per user, RLS in the migration, publishable browser key only.
+5. Sign out and sign in again, then show persistence. If time allows, use a second disposable account to show isolation.
+6. Close with truthful limits: localhost only, no real users or health advice, no public deployment, and AI-assisted implementation.
 
-1. State the user problem and the local-first boundary from `README.md`.
-2. Show the five product views and one primary journey.
-3. Open `App.jsx` to identify the composition root.
-4. Follow state into `use-tracker-data.js` and then the pure storage contract.
-5. Explain one deliberate decision: historical snapshots, reviewed import, or local-calendar behavior.
-6. Open the matching unit/component test and then the browser journey.
-7. Close with limitations, contribution disclosure, and what you would validate before adding sync or accounts.
-
-Keep three evidence levels separate:
-
-- **Implemented:** behavior exists in the current files.
-- **Verified locally:** a recorded command or review observed the result.
-- **Not yet verified remotely:** GitHub Actions and deployment have not run while the repository remains local.
-
-## Suggested walkthrough checkpoints
-
-Complete these in order with one explanation at a time:
-
-1. Product overview and boundaries.
-2. Folder map and application startup.
-3. Today completion flow.
-4. Routine create/edit/delete flow.
-5. V2 contract and V1 migration.
-6. Historical snapshot decision.
-7. Import validation and destructive-action boundary.
-8. Accessibility and responsive decisions.
-9. Test pyramid and one risk-to-test example.
-10. Contribution disclosure, limitations, and future architecture gate.
+The strongest answer is precise rather than broad: name one behavior, the responsible module, the check that exercises it, and the boundary the project intentionally does not cross.

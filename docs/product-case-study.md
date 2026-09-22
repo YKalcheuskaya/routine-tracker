@@ -2,65 +2,45 @@
 
 ## Problem and audience
 
-Routine Tracker is for a person who wants a calm view of a daily rhythm without turning a personal checklist into a quantified productivity system. The original static reference could show instructions but could not preserve progress, adapt the weekly plan, or help the user review recent activity.
+Routine Tracker is a private, manual-first journal for a person who wants to turn selected wellness goals into a clear daily action view. The product is intentionally active and progress-oriented: it makes goals, current progress, and useful context visible without treating mood, symptoms, medication, or cycle information as a performance score.
 
-The V1.1 product closes that loop locally: plan routines, follow Today, retain dated progress, review seven days, and carry the data between browsers through an explicit backup file.
+It is a local portfolio demonstration. The account flow is included so an interviewer can see registration, sign-in, account-scoped persistence, and an RLS-backed data boundary without presenting the project as a public health product.
 
-## Primary journeys
+## Primary journey
 
-### Follow today
+1. Create a disposable local account and set personal steps, water, sleep, meal, and bedtime goals.
+2. Use **Calendar** to log a day: steps, water, bedtime/wake time, a chosen activity, meal, mood, stress, energy, and optional cycle/symptom context.
+3. Create a personally labelled medication reminder and mark it as recorded. This is a personal confirmation only, never medication advice.
+4. Return to **Today** for compact progress and a small water quick-add action; open **Insights** for descriptive seven-day patterns.
+5. Sign out, sign back in, and confirm that the same account's fictional journal remains available.
+6. Create a second disposable local account to demonstrate that it starts with a separate journal.
 
-1. Open **Today** and see the local date, AM/PM groups, and total progress.
-2. Complete a Care, Move, or Focus step and see card plus daily progress update.
-3. Reload during the same day and retain progress.
-4. Start a clean Today view after the local calendar date changes while retaining the prior day's snapshot.
-
-### Shape the week
-
-1. Open **Routines** and create or edit a routine.
-2. Choose its category, AM/PM period, weekdays, and ordered steps.
-3. Use **Schedule** to preview each weekday without changing completion.
-4. Confirm before deleting a routine or restoring the fictional demo library.
-
-### Review and protect data
-
-1. Open **Insights** for seven-day daily and category summaries without streak pressure.
-2. Download a readable version-2 JSON backup.
-3. Select an import, review its routine/day/version summary, and explicitly confirm replacement.
-4. Reject malformed or incompatible content without changing current data.
-
-![Desktop Today dashboard](screenshots/desktop-today.png)
-
-| Routine management | Seven-day insights |
-| --- | --- |
-| ![Routine management](screenshots/desktop-routines.png) | ![Seven-day insights](screenshots/desktop-insights.png) |
+Use fictional data for every demonstration. Do not enter real health, medication, cycle, mood, or identity data.
 
 ## Key decisions
 
 | Decision | Why |
 | --- | --- |
-| Today-first dashboard | The immediate job is following today's rhythm, not configuring the product. |
-| Editable library plus read-only Schedule | Configuration has a clear home while Schedule remains a safe preview. |
-| Versioned local contract | The app works without an account and can evolve through explicit migrations. |
-| Daily step/category snapshots | Historical totals remain defensible after routines are edited or deleted. |
-| Seven-day insights without streaks | The product shows useful patterns without turning care into a score. |
-| Previewed import | A file is validated and summarized before destructive replacement. |
-| Care, Move, Focus fictional content | It demonstrates the product without medical, dosage, or private personal data. |
+| Compact Today, complete Calendar | Today supports an immediate next action; Calendar is the intentionally fuller record. |
+| User-defined goals | Steps, water, sleep, meals, and bedtime reflect personal preferences rather than universal prescriptions. |
+| Manual-first logging | The demo does not imply wearable integration or passive biometric measurement. |
+| Context is separate from scoring | Mood, stress, energy, medication confirmations, cycle context, and symptoms remain private context, not a wellness grade. |
+| Descriptive insights | The product summarizes recorded patterns without diagnosing, asserting causation, or offering treatment advice. |
+| User-created medication reminders | The application records a user's own label and confirmation without collecting dose data or giving medication direction. |
+| Local Supabase account boundary | Auth plus RLS makes account isolation demonstrable while keeping the portfolio project local. |
+| Reviewed data import | A version-3 JSON file is validated and summarized before it can replace a journal. |
 
-## Rejected alternatives
+## Explicit boundaries
 
-- **Accounts and cloud sync:** they require authentication, authorization, privacy, backend, deployment, and operations work that would change the project rather than complete the local product.
-- **Streaks and behavioral scoring:** they conflict with the calm, low-pressure product direction.
-- **Browser notifications:** permission and scheduling complexity did not justify the value without user research.
-- **Medical, supplement, or dosage content:** unsuitable for a public portfolio demo.
-- **Silent import:** unsafe because malformed or unintended files could overwrite local data without review.
+- Routine Tracker does not integrate with Oura Ring or any wearable.
+- It does not measure sleep stages, diagnose symptoms, make treatment recommendations, or provide medication advice.
+- It is not a public service and has no real users, public deployment, cloud project, privacy policy, support operation, or production security claim.
+- A real launch would be a separate product and engineering phase, not a small extension of this demo.
 
 ## Acceptance evidence
 
-The repository includes unit tests for date behavior, schema validation, version migration, storage recovery, routine normalization, and insight calculations; component tests for dashboard states, accessible Schedule behavior, routine validation, and confirmations; and Playwright coverage across desktop and mobile for persistence, responsive containment, Schedule behavior, full routine CRUD, JSON download/import review, insights, date reset, and axe accessibility scans.
-
-The local release workflow runs lint, tests, production build, both Playwright projects, and a dependency audit. The GitHub Actions workflow is prepared to repeat that sequence only after publication is separately approved.
+The project has local lint, unit/component, build, browser, accessibility, and local-account isolation checks. The account check creates two disposable accounts, records data in the first, and verifies an empty journal in the second. A separate manual walkthrough covers registration, full-day logging, reminder confirmation, logout, and sign-in persistence.
 
 ## Contribution model
 
-Julia owned product direction, audience, requirements, acceptance criteria, visual direction, scope control, review, and validation. Implementation was AI-assisted. This is an intentionally transparent product-ownership and quality-engineering case study rather than a claim of independent React authorship.
+Julia owned product direction, audience, requirements, visual direction, scope control, acceptance criteria, review, and validation. Implementation was AI-assisted. The project is presented as an honest product-ownership and quality-engineering case study, not as independent React authorship or a production health-service claim.
