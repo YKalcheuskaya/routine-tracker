@@ -20,6 +20,7 @@ export function useTrackerData(defaultRoutines, userId = null, now = () => new D
   const [cloudStatus, setCloudStatus] = useState(userId && cloudConfigured ? 'connecting' : 'local')
   const cloudReady = useRef(false)
   const dataRef = useRef(state.data)
+  const previousUserId = useRef(null)
 
   useEffect(() => { dataRef.current = state.data }, [state.data])
 
@@ -31,8 +32,17 @@ export function useTrackerData(defaultRoutines, userId = null, now = () => new D
 
   useEffect(() => {
     cloudReady.current = false
-    if (!userId || !cloudConfigured) { setCloudStatus('local'); return undefined }
+    if (!userId || !cloudConfigured) {
+      if (previousUserId.current) {
+        const guestData = createTrackerData(defaultRoutines)
+        setState((current) => ({ ...current, data: guestData, available: storage ? saveTrackerData(storage, guestData) : false }))
+      }
+      previousUserId.current = null
+      setCloudStatus('local')
+      return undefined
+    }
     let active = true
+    previousUserId.current = userId
     setCloudStatus('connecting')
     async function connectAccountJournal() {
       try {
@@ -41,7 +51,9 @@ export function useTrackerData(defaultRoutines, userId = null, now = () => new D
         if (snapshot) {
           setState((current) => ({ ...current, data: snapshot, available: storage ? saveTrackerData(storage, snapshot) : false }))
         } else {
-          await saveCloudSnapshot(userId, dataRef.current)
+          const accountData = createTrackerData(defaultRoutines)
+          setState((current) => ({ ...current, data: accountData, available: storage ? saveTrackerData(storage, accountData) : false }))
+          await saveCloudSnapshot(userId, accountData)
         }
         if (!active) return
         cloudReady.current = true
@@ -52,7 +64,7 @@ export function useTrackerData(defaultRoutines, userId = null, now = () => new D
     }
     connectAccountJournal()
     return () => { active = false }
-  }, [storage, userId])
+  }, [defaultRoutines, storage, userId])
 
   useEffect(() => {
     if (!userId || !cloudConfigured || !cloudReady.current) return

@@ -2,7 +2,7 @@
 
 Routine Tracker is a private portfolio wellness journal for personally chosen goals and manual check-ins. It demonstrates how separate account holders could record activity, sleep, hydration, meals, mood, stress, energy, reminders, cycle context, and symptoms without presenting a diagnosis or medical advice.
 
-**Status:** cloud-ready local portfolio implementation. No Supabase project, Vercel project, public URL, or real-user service exists.
+**Status:** local Supabase portfolio demonstration. No cloud Supabase project, Vercel project, public URL, or real-user service exists.
 
 ## Product experience
 
@@ -20,7 +20,7 @@ The application includes a Supabase Auth integration boundary for email/password
 
 The browser uses a Supabase publishable key only. A Supabase service-role or secret key must never be added to Vite variables, committed, or exposed to the client. Signed-out visitors stay in local-only mode; signed-in users sync their private journal and retain a local browser cache for continuity.
 
-This is not a public service, a production system, or an invitation for real users. It makes no legal privacy, HIPAA, clinical, security-certification, or production-availability claim. A private Supabase test project may be configured later for a live interviewer demonstration on `localhost`; that would remain separate from any public launch.
+This is not a public service, a production system, or an invitation for real users. It makes no legal privacy, HIPAA, clinical, security-certification, or production-availability claim. A local Supabase Docker stack provides the live account demonstration on `localhost`; it remains separate from any public launch.
 
 ## Run locally
 
@@ -31,14 +31,23 @@ npm ci
 npm run dev
 ```
 
-Without environment variables, the app intentionally runs as a local private preview. To demonstrate live account flows against a Julia-controlled private Supabase test project, copy `.env.example` to `.env.local` and provide only:
+To run the fully local account demonstration, start Docker Desktop once, then run:
+
+```bash
+npm run supabase:start
+npm run dev:local
+```
+
+Open `http://127.0.0.1:5173`. The untracked `.env.local` is configured with the local Supabase API and its local publishable key. It is not a cloud credential.
+
+To demonstrate against a separate Julia-controlled Supabase test project later, copy `.env.example` to `.env.local` and provide only:
 
 ```bash
 VITE_SUPABASE_URL=https://your-project.supabase.co
 VITE_SUPABASE_PUBLISHABLE_KEY=your-publishable-key
 ```
 
-Apply `supabase/migrations/20260922130000_create-wellness-snapshots.sql` to that project before enabling sign-up. See [the private demo guide](docs/private-demo-guide.md).
+The local CLI applies `supabase/migrations/20260922130000_create-wellness-snapshots.sql` during `supabase db reset`. See [the private demo guide](docs/private-demo-guide.md).
 
 ## Verify
 
