@@ -60,17 +60,13 @@ This is a localhost engineering demonstration, not a deployed service. It makes 
 | Local account Playwright test | Two disposable accounts register locally; one records water and the other starts with an empty journal, proving the observable account-isolation flow. |
 | Manual review | Visual hierarchy, wording, local account flow, and the explicit medical/privacy boundaries. |
 
-Run the core checks with:
+Run the complete automated gate with:
 
 ```bash
-npm run lint
-npm test
-npm run build
-npm run test:e2e
-npm run test:local-auth
+npm run verify:full
 ```
 
-`npm run test:local-auth` requires the local Supabase Docker stack. The private setup and reset procedure are in [private-demo-guide.md](private-demo-guide.md).
+The full gate requires the local Supabase Docker stack and covers every layer in the table. Setup, reset, and safe local configuration are documented in the [local account demonstration guide](local-account-demo.md).
 
 ## Accessibility and responsive review
 
@@ -78,4 +74,4 @@ The app uses native form controls, explicit labels, buttons, visible focus treat
 
 ## Delivery boundary
 
-Routine Tracker remains local. No cloud Supabase project, public URL, public repository, real-user invitation, or production operation exists. Any real launch would require a separate scope including privacy/legal review, security/threat modeling, account recovery and deletion policies, operational monitoring, support, and deployment verification.
+Routine Tracker remains a local application. No cloud Supabase project, hosted application URL, real-user invitation, or production operation exists. Any real launch would require a separate scope including privacy/legal review, security/threat modeling, account recovery and deletion policies, operational monitoring, support, and deployment verification.

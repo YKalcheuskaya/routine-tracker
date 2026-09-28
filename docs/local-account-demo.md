@@ -1,13 +1,13 @@
-# Private Account Demonstration Guide
+# Local Account Demonstration Guide
 
-This guide makes the account flow demonstrable for an interview without publishing Routine Tracker or inviting real users.
+This guide makes the account flow demonstrable for an interview without deploying Routine Tracker or inviting real users.
 
 ## Local test setup
 
 1. Start Docker Desktop.
 2. Run `npm run supabase:start`. Supabase Auth, Postgres, Studio, and local email capture run only on the machine.
-3. Run `npm run dev:local`, then open `http://127.0.0.1:5173`.
-4. Use the generated local `.env.local`. It contains the local API URL and local publishable key only. Never use a secret or service-role key in the browser.
+3. Run `npm run supabase:env`. It writes the local API URL and browser-safe publishable key to `.env.local` without printing their values. Never use a secret or service-role key in the browser.
+4. Run `npm run dev:local`, then open `http://127.0.0.1:5173`.
 
 To recreate the database from the version-controlled migration, run `npx supabase db reset --local`. This deletes only the local demo accounts and entries before rebuilding them.
 

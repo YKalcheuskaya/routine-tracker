@@ -79,11 +79,7 @@ The cloud adapter never owns a service-role secret. The SQL migration applies RL
 Run the current local checks with:
 
 ```bash
-npm run lint
-npm test
-npm run build
-npm run test:e2e
-npm run test:local-auth
+npm run verify:full
 ```
 
 ## How to present it in an interview
