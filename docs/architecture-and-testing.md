@@ -43,6 +43,46 @@ Entries are manually entered; the app does not claim to measure sleep stages, di
 
 The browser cache uses `localStorage` for continuity. Invalid or legacy version-1/version-2 data is normalized or replaced with a clean demo record rather than crashing. Import accepts only a valid version-3 journal and requires a review before it replaces the current journal.
 
+## Representative local journal update flow
+
+The sequence below follows a signed-out user saving activity and hydration metrics. It is an in-browser event and data-update flow, not a server request/response flow: the visible result is a React re-render, while `localStorage` retains the latest journal for this browser.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User
+    box "Presentation layer"
+        participant Calendar as CalendarView
+        participant App as App.jsx
+    end
+    box "State and coordination layer"
+        participant Tracker as useTrackerData
+        participant React as React state
+    end
+    box "Data and persistence layer"
+        participant Storage as tracker-storage.js
+        participant Local as browser localStorage
+    end
+
+    Note over App,Tracker: App passes tracker.updateMetrics to CalendarView as onUpdateMetrics
+    User->>Calendar: Changes a metrics field
+    Calendar->>Calendar: setMetrics(...) updates the temporary form draft
+    User->>Calendar: Presses Save metrics
+    Calendar->>Calendar: saveMetrics(event) prevents the normal form submission
+    Calendar->>Tracker: onUpdateMetrics(date, metrics)
+    Tracker->>Tracker: updateMetrics(...) delegates to mutate(...)
+    Tracker->>Storage: updateMetricsForDate(currentData, date, values)
+    Storage->>Storage: Creates an immutable updated journal
+    Storage-->>Tracker: updatedData
+    Tracker->>Local: saveTrackerData(storage, updatedData)
+    Local-->>Tracker: Persistence availability result
+    Tracker->>React: setState with updatedData
+    React-->>Calendar: Renders current saved metrics
+    React-->>User: Updates Calendar, Today, and Insights
+```
+
+`CalendarView` owns only the temporary form draft. `useTrackerData` owns the shared saved journal state, and `tracker-storage.js` supplies pure immutable update helpers. The same coordination layer also performs optional account-scoped cloud sync after state changes when an authenticated local account is configured; that separate account flow is described below.
+
 ## Local account demonstration
 
 When local Supabase configuration is present, `useAuth` observes the email/password session. `useTrackerData` then loads the authenticated account's `wellness_snapshots.journal` record, or creates a clean one for a new account. Journal changes are cached locally and saved to that account's snapshot.

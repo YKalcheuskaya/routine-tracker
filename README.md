@@ -30,6 +30,8 @@ flowchart LR
 
 Signed-out use remains local. After authentication, the application loads or creates the user's snapshot, caches normalized state in the browser, and upserts changes to PostgreSQL. RLS independently restricts `select`, `insert`, `update`, and `delete` to rows where `auth.uid() = user_id`. The browser receives only a publishable key.
 
+For a compact step-by-step view of one signed-out journal update—from a Calendar form event through immutable state, browser persistence, and the refreshed UI—see the [representative local journal update flow](docs/architecture-and-testing.md#representative-local-journal-update-flow).
+
 ## Key engineering decisions
 
 | Concern | Implementation |

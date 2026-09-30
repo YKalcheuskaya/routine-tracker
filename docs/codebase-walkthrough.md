@@ -35,6 +35,8 @@ flowchart TD
 
 `App.jsx` only selects a view and wires callbacks. It does not calculate sleep duration, mutate journal entries, parse stored data, or write Supabase rows.
 
+For the exact callback-to-persistence path behind a signed-out Calendar metrics save, see the [representative local journal update flow](architecture-and-testing.md#representative-local-journal-update-flow). Use it to orient the code reading below; it intentionally does not repeat the account-synchronization flow.
+
 ## Journal and account boundary
 
 `tracker-storage.js` normalizes a version-3 journal with editable goals, medication reminder labels, and date-indexed manual entries. `wellness-model.js` provides a safe empty day and pure calculations such as manually logged sleep duration and daily goal progress.
@@ -50,7 +52,7 @@ The cloud adapter never owns a service-role secret. The SQL migration applies RL
 3. The session user ID reaches `useTrackerData` through `App.jsx`.
 4. `useTrackerData` calls `loadCloudSnapshot(userId)`. A new account receives a clean, normalized journal and one account-scoped snapshot is created.
 5. In `CalendarView`, a form calls a mutation such as `onUpdateMetrics`, `onUpdateSleep`, `onAddActivity`, or `onAddMeal`.
-6. The mutation delegates to a pure `tracker-storage.js` helper, updates React state, updates local cache, and saves the normalized snapshot when signed in.
+6. The mutation delegates to a pure `tracker-storage.js` helper, updates React state, updates local cache, and saves the normalized snapshot when signed in. The [representative local journal update flow](architecture-and-testing.md#representative-local-journal-update-flow) shows the signed-out metrics path in exact sequence.
 7. `TodayDashboard` and `InsightsView` derive their visible summaries from the same dated journal.
 8. After sign-out and sign-in, the adapter loads the same account snapshot rather than another account's cache.
 
