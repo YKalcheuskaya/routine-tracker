@@ -32,7 +32,7 @@ flowchart LR
 
 `src/features/tracker/` owns the version-3 contract, validation, legacy migration, immutable mutations, local persistence, and import/export boundary. `src/features/wellness/` contains the domain model and pure calculations. `src/features/cloud/` isolates authentication and account-scoped synchronization from the UI.
 
-Signed-out use remains local. Guest and account journals use separate browser-storage keys. After authentication, the application hides the journal until it loads or creates that account's snapshot, then caches normalized state under that account's key and upserts changes to PostgreSQL. RLS independently restricts `select`, `insert`, `update`, and `delete` to rows where `auth.uid() = user_id`. The browser receives only a publishable key.
+Signed-out use remains local. Guest and account journals use separate browser-storage keys. After authentication, the application hides the journal until it loads or creates that account's validated snapshot, then caches normalized state under that account's key and queues changes to PostgreSQL in order. A failed snapshot read keeps edits in the matching browser cache but disables cloud writes until a reload successfully reconnects, preventing fallback data from overwriting the server journal. RLS independently restricts `select`, `insert`, `update`, and `delete` to rows where `auth.uid() = user_id`. The browser receives only a publishable key.
 
 For a compact step-by-step view of one signed-out journal update—from a Calendar form event through immutable state, browser persistence, and the refreshed UI—see the [representative local journal update flow](docs/architecture-and-testing.md#representative-local-journal-update-flow).
 
@@ -134,15 +134,17 @@ It executes the layers below in order:
 | `npm test` | Unit and component | Data validation/migration, mutations, dates, calculations, rendered states, and forms |
 | `npm run build` | Build integration | Production bundling and module resolution |
 | `npm audit` | Dependency security | Known vulnerabilities in the installed dependency graph |
+| `npm run test:rls` | Direct database authorization | Owner access plus cross-account select, insert, update, and delete denial with two disposable users |
 | `npm run test:browser` | Browser E2E, accessibility, and auth/database integration | Local journeys plus two-account snapshot synchronization and observable cross-account isolation on desktop and mobile |
 
 Playwright starts and stops its own Vite server on port `4173`. The account suite creates two disposable users, writes data for the first account, and verifies that the second account starts with an independent journal.
 
 Expected results for the current test set:
 
-- 8 Vitest files and 23 tests;
-- 10 Playwright desktop/mobile product, import-safety, and accessibility checks;
-- 4 Playwright desktop/mobile account-isolation and session-expiry checks;
+- 10 Vitest files and 32 tests;
+- 12 Playwright desktop/mobile product, persistence, import-safety, and accessibility checks;
+- 6 Playwright desktop/mobile account-isolation, session-expiry, and read-failure checks;
+- direct RLS owner and cross-account select/insert/update/delete verification;
 - successful lint and production build;
 - 0 known dependency vulnerabilities.
 

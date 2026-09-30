@@ -1,6 +1,5 @@
 /** Seven-day trends show manual records without claiming medical causation. */
 import { buildWeeklyInsights, formatShortDate } from './wellness-insights'
-import { formatMinutes } from '../wellness/wellness-model'
 
 function ColumnChart({ title, values, suffix = '', tone }) {
   const max = Math.max(...values.map((item) => item.value), 1)

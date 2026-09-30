@@ -8,6 +8,7 @@ import { defaultGoals, defaultMedications, emptyDay } from '../wellness/wellness
 // owner after a browser session expires. Guest and account journals now differ.
 export const TRACKER_STORAGE_KEY = 'routine-tracker:guest-progress'
 export const TRACKER_STORAGE_VERSION = 3
+const weekdayNames = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
 
 export function storageKeyForAccount(userId) {
   return `routine-tracker:account:${encodeURIComponent(userId)}`
@@ -50,7 +51,7 @@ function nonNegative(value) { return Number.isFinite(value) && value >= 0 }
 function validRoutine(routine) {
   return isObject(routine) && nonEmpty(routine.id) && nonEmpty(routine.category) && nonEmpty(routine.period)
     && nonEmpty(routine.title) && validString(routine.description) && Array.isArray(routine.weekdays)
-    && routine.weekdays.every((weekday) => ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].includes(weekday))
+    && routine.weekdays.every((weekday) => weekdayNames.includes(weekday))
     && Array.isArray(routine.steps) && routine.steps.every((step) => isObject(step) && nonEmpty(step.id) && nonEmpty(step.title) && (step.detail === undefined || validString(step.detail)))
 }
 
@@ -81,7 +82,7 @@ function isValidData(value) {
   return isObject(value) && value.version === TRACKER_STORAGE_VERSION
     && isObject(value.goals)
     && Object.entries(defaultGoals).every(([key]) => key === 'bedtime' ? validTime(value.goals[key]) : Number.isFinite(value.goals[key]) && value.goals[key] >= 0)
-    && Array.isArray(value.medications) && value.medications.every((item) => isObject(item) && nonEmpty(item.id) && nonEmpty(item.label) && validTime(item.time) && Array.isArray(item.weekdays) && item.weekdays.every((weekday) => Number.isInteger(weekday) && weekday >= 0 && weekday <= 6))
+    && Array.isArray(value.medications) && value.medications.every((item) => isObject(item) && nonEmpty(item.id) && nonEmpty(item.label) && validTime(item.time) && Array.isArray(item.weekdays) && item.weekdays.every((weekday) => weekdayNames.includes(weekday)))
     && Array.isArray(value.routines) && value.routines.every(validRoutine)
     && isObject(value.days)
     && Object.entries(value.days).every(([date, day]) => validDate(date) && isValidDay(day))
@@ -123,38 +124,47 @@ export function normalizeData(value) {
   }
 }
 
+export function validateTrackerData(value) {
+  if (!isValidData(value)) throw new Error('Invalid version 3 wellness journal.')
+  return normalizeData(value)
+}
+
 export function loadTrackerData(storage, defaultRoutines, storageKey = TRACKER_STORAGE_KEY) {
   try {
     const raw = storage.getItem(storageKey)
     if (!raw) return { data: createTrackerData(defaultRoutines), recovered: false, migrated: false, available: true }
     let parsed
     try { parsed = JSON.parse(raw) } catch { return { data: createTrackerData(defaultRoutines), recovered: true, migrated: false, available: true } }
-    const migrated = migrateLegacy(parsed, defaultRoutines)
-    if (migrated) return { data: migrated, recovered: false, migrated: true, available: true }
-    if (!isValidData(parsed)) return { data: createTrackerData(defaultRoutines), recovered: true, migrated: false, available: true }
-    return { data: normalizeData(parsed), recovered: false, migrated: false, available: true }
+    let migrated
+    try { migrated = migrateLegacy(parsed, defaultRoutines) } catch { return { data: createTrackerData(defaultRoutines), recovered: true, migrated: false, available: true } }
+    if (migrated) {
+      if (!isValidData(migrated)) return { data: createTrackerData(defaultRoutines), recovered: true, migrated: false, available: true }
+      return { data: normalizeData(migrated), recovered: false, migrated: true, available: true }
+    }
+    try { return { data: validateTrackerData(parsed), recovered: false, migrated: false, available: true } } catch { return { data: createTrackerData(defaultRoutines), recovered: true, migrated: false, available: true } }
   } catch {
     return { data: createTrackerData(defaultRoutines), recovered: false, migrated: false, available: false }
   }
 }
 
 export function saveTrackerData(storage, data, storageKey = TRACKER_STORAGE_KEY) {
-  try { storage.setItem(storageKey, JSON.stringify(data)); return true } catch { return false }
+  try { storage.setItem(storageKey, JSON.stringify(validateTrackerData(data))); return true } catch { return false }
 }
 
-export function serializeTrackerData(data) { return JSON.stringify(normalizeData(data), null, 2) }
+export function serializeTrackerData(data) { return JSON.stringify(validateTrackerData(data), null, 2) }
 
 export function parseTrackerImport(text) {
   let parsed
   try { parsed = JSON.parse(text) } catch { return { data: null, error: 'The selected file is not valid JSON.' } }
-  if (!isValidData(parsed)) return { data: null, error: 'The selected file is not a valid version 3 wellness export.' }
-  try { return { data: normalizeData(parsed), error: null } } catch { return { data: null, error: 'The selected file could not be safely read.' } }
+  try { return { data: validateTrackerData(parsed), error: null } } catch { return { data: null, error: 'The selected file is not a valid version 3 wellness export.' } }
 }
 
 function updateDay(data, localDate, mutate) {
+  if (!validDate(localDate)) return data
   const current = cloneDay(data.days[localDate] ?? emptyDay())
   const nextDay = mutate(current)
-  return { ...data, days: { ...data.days, [localDate]: cloneDay(nextDay) } }
+  const next = { ...data, days: { ...data.days, [localDate]: cloneDay(nextDay) } }
+  return isValidData(next) ? next : data
 }
 
 export function updateMetricsForDate(data, localDate, values) {
@@ -193,6 +203,12 @@ export function addSymptomForDate(data, localDate, symptom) {
   return updateDay(data, localDate, (day) => ({ ...day, symptoms: [...day.symptoms, { ...symptom }] }))
 }
 
-export function updateGoals(data, goals) { return { ...data, goals: { ...data.goals, ...goals } } }
+export function updateGoals(data, goals) {
+  const next = { ...data, goals: { ...data.goals, ...goals } }
+  return isValidData(next) ? next : data
+}
 
-export function updateMedications(data, medications) { return { ...data, medications: medications.map((item) => ({ ...item, weekdays: [...item.weekdays] })) } }
+export function updateMedications(data, medications) {
+  const next = { ...data, medications: medications.map((item) => ({ ...item, weekdays: [...item.weekdays] })) }
+  return isValidData(next) ? next : data
+}

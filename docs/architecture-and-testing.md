@@ -86,7 +86,7 @@ sequenceDiagram
 
 ## Local account demonstration
 
-When local Supabase configuration is present, `useAuth` resolves the email/password session. `useTrackerData` keeps the journal hidden while identity is unresolved or an account snapshot is loading. It then loads the authenticated account's `wellness_snapshots.journal` record, or creates a clean one for a new account. Journal changes are cached only under that account's browser-storage key and saved to that account's snapshot. A late response for an earlier account is discarded.
+When local Supabase configuration is present, `useAuth` resolves the email/password session. `useTrackerData` keeps the journal hidden while identity is unresolved or an account snapshot is loading. It then validates and loads the authenticated account's `wellness_snapshots.journal` record, or creates a clean one for a new account. Journal changes are cached only under that account's browser-storage key and queued to that account's snapshot in mutation order. A late response for an earlier account is discarded. The local stack receives one bounded retry for its specific `PGRST303` token-clock-skew response immediately after signup. If any other snapshot read fails, the matching browser cache remains usable but cloud writes stay disabled until a reload reconnects successfully; fallback data is never uploaded as a repair.
 
 The SQL migration in `supabase/migrations/` enables Row Level Security. Its policies allow a signed-in user to select, insert, update, or delete only the row whose `user_id` equals their authenticated ID. The browser receives a publishable key only; a service-role key is never part of the client configuration.
 
@@ -96,9 +96,10 @@ This is a localhost engineering demonstration, not a deployed service. It makes 
 
 | Layer | Purpose |
 | --- | --- |
-| Vitest unit and component tests | Dates, version-3 validation and migration, journal mutations, wellness calculations, rendered dashboard states, forms, and controls. |
-| Playwright | Desktop and mobile journeys for manual logging, plans, reviewed and rejected imports, insights, all-view accessibility, and responsive behavior. |
-| Local account Playwright test | Disposable accounts prove persisted data, sign-out/sign-in return, an empty second account, and that expired authentication never exposes an account cache to a guest or another account. |
+| Vitest unit, hook, and component tests | Dates, version-3 validation and migration, server validation, ordered owner-scoped synchronization, journal mutations, wellness calculations, rendered dashboard states, forms, and controls. |
+| Playwright | Desktop and mobile journeys for manual logging, reminder persistence, bounded inputs, date clearing, reviewed and rejected imports, insights, all-view accessibility, and responsive behavior. |
+| Local account Playwright test | Disposable accounts prove persisted data, sign-out/sign-in return, an empty second account, expired-session cache isolation, and preservation of the server journal after a failed snapshot read. |
+| Direct RLS verification | Two disposable authenticated clients prove owner insert/read and denial of cross-account select, insert, update, and delete. |
 | Manual review | Visual hierarchy, wording, local account flow, and the explicit medical/privacy boundaries. |
 
 Run the complete automated gate with:

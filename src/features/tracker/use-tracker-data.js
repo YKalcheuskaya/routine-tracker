@@ -16,14 +16,17 @@ function recordId(prefix) { return `${prefix}-${Date.now()}-${Math.random().toSt
 export function useTrackerData(defaultRoutines, { userId = null, authLoading = false } = {}, now = () => new Date()) {
   const storage = browserStorage()
   const [localDate, setLocalDate] = useState(() => getLocalDate(now()))
-  const [state, setState] = useState(() => ({ data: createTrackerData(defaultRoutines), recovered: false, migrated: false, available: Boolean(storage) }))
+  const [state, setState] = useState(() => ({ data: createTrackerData(defaultRoutines), recovered: false, migrated: false, available: Boolean(storage), revision: 0 }))
   const [cloudStatus, setCloudStatus] = useState('local')
   const [owner, setOwner] = useState(null)
   const [ready, setReady] = useState(false)
   const generation = useRef(0)
+  const sync = useRef(null)
 
   useEffect(() => {
     const currentGeneration = ++generation.current
+    const context = { generation: currentGeneration, owner: userId, writable: false, queue: Promise.resolve(), lastQueuedRevision: 0, latestRevision: 0 }
+    sync.current = context
     setReady(false)
     setOwner(null)
     if (cloudConfigured && authLoading) {
@@ -36,7 +39,7 @@ export function useTrackerData(defaultRoutines, { userId = null, authLoading = f
         guest = { ...guest, migrated: false, available: saveTrackerData(storage, guest.data) }
       }
       if (currentGeneration !== generation.current) return undefined
-      setState(guest)
+      setState({ ...guest, revision: 0 })
       setOwner('guest')
       setReady(true)
       setCloudStatus('local')
@@ -46,18 +49,30 @@ export function useTrackerData(defaultRoutines, { userId = null, authLoading = f
     setCloudStatus('connecting')
     async function connectAccountJournal() {
       try {
-        const snapshot = await loadCloudSnapshot(userId)
+        let snapshot
+        try {
+          snapshot = await loadCloudSnapshot(userId)
+        } catch (error) {
+          if (error?.code !== 'PGRST303') throw error
+          await new Promise((resolve) => window.setTimeout(resolve, 1000))
+          if (!active || currentGeneration !== generation.current) throw error
+          snapshot = await loadCloudSnapshot(userId)
+        }
         if (!active || currentGeneration !== generation.current) return
         let next
         if (snapshot) {
           next = { data: snapshot, recovered: false, migrated: false, available: storage ? saveTrackerData(storage, snapshot, storageKeyForAccount(userId)) : false }
         } else {
-          const accountData = createTrackerData(defaultRoutines)
+          const accountKey = storageKeyForAccount(userId)
+          const hasAccountCache = Boolean(storage?.getItem(accountKey))
+          const cached = hasAccountCache ? loadTrackerData(storage, defaultRoutines, accountKey) : null
+          const accountData = cached && !cached.recovered ? cached.data : createTrackerData(defaultRoutines)
           next = { data: accountData, recovered: false, migrated: false, available: storage ? saveTrackerData(storage, accountData, storageKeyForAccount(userId)) : false }
           await saveCloudSnapshot(userId, accountData)
         }
         if (!active || currentGeneration !== generation.current) return
-        setState(next)
+        context.writable = true
+        setState({ ...next, revision: 0 })
         setOwner(userId)
         setReady(true)
         setCloudStatus('synced')
@@ -67,7 +82,7 @@ export function useTrackerData(defaultRoutines, { userId = null, authLoading = f
         if (cached.migrated && storage) {
           cached = { ...cached, migrated: false, available: saveTrackerData(storage, cached.data, storageKeyForAccount(userId)) }
         }
-        setState(cached)
+        setState({ ...cached, revision: 0 })
         setOwner(userId)
         setReady(true)
         setCloudStatus('error')
@@ -78,9 +93,20 @@ export function useTrackerData(defaultRoutines, { userId = null, authLoading = f
   }, [authLoading, defaultRoutines, storage, userId])
 
   useEffect(() => {
-    if (!userId || !cloudConfigured || !ready || owner !== userId) return
-    saveCloudSnapshot(userId, state.data).then(() => setCloudStatus('synced')).catch(() => setCloudStatus('error'))
-  }, [owner, ready, state.data, userId])
+    const context = sync.current
+    if (!userId || !cloudConfigured || !ready || owner !== userId || !context?.writable || context.owner !== userId || context.generation !== generation.current || state.revision === 0 || state.revision <= context.lastQueuedRevision) return
+    const revision = state.revision
+    const snapshot = state.data
+    context.lastQueuedRevision = revision
+    context.latestRevision = revision
+    setCloudStatus('saving')
+    context.queue = context.queue.catch(() => undefined).then(() => saveCloudSnapshot(userId, snapshot))
+    context.queue.then(() => {
+      if (sync.current === context && context.latestRevision === revision) setCloudStatus('synced')
+    }).catch(() => {
+      if (sync.current === context && context.latestRevision === revision) setCloudStatus('error')
+    })
+  }, [owner, ready, state.data, state.revision, userId])
 
   const refreshForDate = useCallback(() => setLocalDate(getLocalDate(now())), [now])
   useEffect(() => {
@@ -93,9 +119,10 @@ export function useTrackerData(defaultRoutines, { userId = null, authLoading = f
   const mutate = useCallback((transform) => {
     setState((current) => {
       const data = transform(current.data)
+      if (data === current.data) return current
       const storageKey = userId ? storageKeyForAccount(userId) : undefined
       const available = storage ? saveTrackerData(storage, data, storageKey) : false
-      return { ...current, data, available }
+      return { ...current, data, available, revision: current.revision + 1 }
     })
   }, [storage, userId])
 

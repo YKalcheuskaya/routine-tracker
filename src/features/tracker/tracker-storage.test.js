@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { addActivityForDate, createTrackerData, loadTrackerData, parseTrackerImport, saveTrackerData, serializeTrackerData, storageKeyForAccount, TRACKER_STORAGE_KEY, updateMetricsForDate, updateSleepForDate } from './tracker-storage'
+import { addActivityForDate, createTrackerData, loadTrackerData, parseTrackerImport, saveTrackerData, serializeTrackerData, storageKeyForAccount, TRACKER_STORAGE_KEY, updateMedications, updateMetricsForDate, updateSleepForDate, updateWellbeingForDate } from './tracker-storage'
 
 function memoryStorage(initial = {}) {
   const values = new Map(Object.entries(initial))
@@ -44,6 +44,21 @@ describe('versioned wellness storage', () => {
     expect(loadTrackerData(storage, [], storageKeyForAccount('fictional-account-b')).data.days).toEqual({})
   })
 
+  it('round-trips the weekday names produced by Plans without losing journal data', () => {
+    const storage = memoryStorage()
+    let data = updateMetricsForDate(createTrackerData([]), '2026-09-30', { waterMl: 1250 })
+    data = updateMedications(data, [{ id: 'reminder-1', label: 'Fictional reminder', time: '08:00', weekdays: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] }])
+    expect(saveTrackerData(storage, data)).toBe(true)
+    expect(loadTrackerData(storage, []).data).toEqual(data)
+    expect(parseTrackerImport(serializeTrackerData(data))).toEqual({ data, error: null })
+  })
+
+  it('ignores out-of-range live values while preserving unrelated entries', () => {
+    const data = updateMetricsForDate(createTrackerData([]), '2026-09-30', { waterMl: 1250 })
+    expect(updateWellbeingForDate(data, '2026-09-30', { stress: 11 })).toEqual(data)
+    expect(updateWellbeingForDate(data, '2026-09-30', { stress: 8 }).days['2026-09-30'].wellbeing.stress).toBe(8)
+  })
+
   it('exports only a valid version-three wellness contract', () => {
     const data = updateMetricsForDate(createTrackerData([]), '2026-09-21', { steps: 10, waterMl: 200 })
     expect(parseTrackerImport(serializeTrackerData(data))).toEqual({ data, error: null })
@@ -69,6 +84,14 @@ describe('versioned wellness storage', () => {
     invalid.medications = [null]
     const result = loadTrackerData(memoryStorage({ [TRACKER_STORAGE_KEY]: JSON.stringify(invalid) }), [])
     expect(result.recovered).toBe(true)
+    expect(result.data.days).toEqual({})
+  })
+
+  it('validates migrated records before trusting nested legacy values', () => {
+    const malformedLegacy = { version: 2, routines: [], days: { '2026-09-30': { completedStepIds: [{ invalid: true }] } } }
+    const result = loadTrackerData(memoryStorage({ [TRACKER_STORAGE_KEY]: JSON.stringify(malformedLegacy) }), [])
+    expect(result.recovered).toBe(true)
+    expect(result.migrated).toBe(false)
     expect(result.data.days).toEqual({})
   })
 })

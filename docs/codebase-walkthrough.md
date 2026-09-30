@@ -41,7 +41,7 @@ For the exact callback-to-persistence path behind a signed-out Calendar metrics 
 
 `tracker-storage.js` normalizes a version-3 journal with editable goals, medication reminder labels, and date-indexed manual entries. `wellness-model.js` provides a safe empty day and pure calculations such as manually logged sleep duration and daily goal progress.
 
-`useTrackerData` writes every mutation to browser cache. If an authenticated local account is available, it also loads or saves the account's single `wellness_snapshots` record. On sign-out it replaces the active account's cached state with a clean guest journal, which prevents the next visitor from seeing the previous account's local cache.
+`useTrackerData` writes every mutation to the active owner's browser cache. Guest data and every authenticated account use different keys, so sign-out restores the separate guest journal without exposing the prior account cache. For a connected account, mutations are queued in order to its single `wellness_snapshots` record. A failed snapshot read leaves cloud writing disabled until a later reload reconnects, so a cache fallback cannot erase the server journal.
 
 The cloud adapter never owns a service-role secret. The SQL migration applies RLS so a user can only access the row tied to that authenticated user's ID. This is verified locally with two disposable accounts; it is not a production security certification.
 
@@ -52,7 +52,7 @@ The cloud adapter never owns a service-role secret. The SQL migration applies RL
 3. The session user ID reaches `useTrackerData` through `App.jsx`.
 4. `useTrackerData` calls `loadCloudSnapshot(userId)`. A new account receives a clean, normalized journal and one account-scoped snapshot is created.
 5. In `CalendarView`, a form calls a mutation such as `onUpdateMetrics`, `onUpdateSleep`, `onAddActivity`, or `onAddMeal`.
-6. The mutation delegates to a pure `tracker-storage.js` helper inside the React state updater, updates the owner-specific local cache, and saves the normalized snapshot when signed in. The [representative local journal update flow](architecture-and-testing.md#representative-local-journal-update-flow) illustrates the signed-out metrics path.
+6. The mutation delegates to a pure `tracker-storage.js` helper inside the React state updater, updates the owner-specific local cache, and queues the validated snapshot when signed in. The [representative local journal update flow](architecture-and-testing.md#representative-local-journal-update-flow) illustrates the signed-out metrics path.
 7. `TodayDashboard` and `InsightsView` derive their visible summaries from the same dated journal.
 8. After sign-out and sign-in, the adapter loads the same account snapshot rather than another account's cache.
 
@@ -66,16 +66,16 @@ The cloud adapter never owns a service-role secret. The SQL migration applies RL
 | `src/features/insights/wellness-insights.js` | Insights are pure descriptions of recorded entries, not diagnoses or causation claims. |
 | `src/features/plans/plans-view.jsx` | Goals and reminder labels are chosen by the account holder. |
 | `src/features/tracker/tracker-storage.js` | Versioning, validation, reviewed import, and immutable mutation helpers. |
-| `src/features/tracker/use-tracker-data.js` | Cache continuity, clean guest state after sign-out, and optional account sync. |
-| `src/features/cloud/cloud-storage.js` | One normalized journal snapshot per authenticated local account. |
+| `src/features/tracker/use-tracker-data.js` | Owner-specific cache continuity, ordered saves, stale-callback protection, and optional account sync. |
+| `src/features/cloud/cloud-storage.js` | A validated journal snapshot boundary for each authenticated local account. |
 | `supabase/migrations/20260922130000_create-wellness-snapshots.sql` | RLS ownership boundary at the database layer. |
 | `e2e/local-auth.spec.js` | Observable account registration and journal-isolation proof. |
 
 ## Test strategy
 
-- **Unit/component tests:** journal model, version migration, manual-entry mutations, insight calculations, forms, and display states.
-- **Browser tests:** desktop/mobile flows, manual logging, reminder confirmation, import review, accessibility scans, and responsive behavior.
-- **Local account test:** two disposable accounts prove that a journal update in one does not appear in the other.
+- **Unit/hook/component tests:** journal model, checked version migration and server data, ordered account saves, stale callbacks, manual-entry mutations, insight calculations, forms, and display states.
+- **Browser tests:** desktop/mobile flows, manual logging, reminder persistence, bounded inputs, import review, accessibility scans, and responsive behavior.
+- **Local account tests:** disposable accounts prove cross-account isolation, expired-session safety, persistence, and non-destructive behavior after a failed snapshot read.
 - **Manual review:** visual density, health-adjacent language, complete signup/signout/signin cycle, and local-only boundaries.
 
 Run the current local checks with:

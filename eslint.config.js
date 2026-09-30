@@ -1,23 +1,25 @@
 /** Static-analysis rules for React components and hook dependency safety. */
-import reactPlugin from 'eslint-plugin-react'
+import js from '@eslint/js'
 import hooksPlugin from 'eslint-plugin-react-hooks'
+import globals from 'globals'
 
 export default [
+  { ignores: ['dist/**', 'node_modules/**', 'playwright-report/**', 'test-results/**'] },
+  js.configs.recommended,
   {
-    files: ['src/**/*.{js,jsx}'],
+    files: ['src/**/*.{js,jsx}', 'e2e/**/*.js', 'scripts/**/*.mjs', '*.{js,mjs}'],
     languageOptions: {
       ecmaVersion: 'latest',
       sourceType: 'module',
       parserOptions: { ecmaFeatures: { jsx: true } },
-      globals: { window: 'readonly', document: 'readonly', console: 'readonly' },
+      globals: { ...globals.browser, ...globals.node },
     },
-    settings: { react: { version: 'detect' } },
-    plugins: { react: reactPlugin, 'react-hooks': hooksPlugin },
+    plugins: { 'react-hooks': hooksPlugin },
     rules: {
-      ...reactPlugin.configs.recommended.rules,
       ...hooksPlugin.configs.recommended.rules,
-      'react/react-in-jsx-scope': 'off',
-      'react/prop-types': 'off',
+      // These effects intentionally reset controlled drafts or ownership state
+      // when their external source changes; the updates are not render-derived.
+      'react-hooks/set-state-in-effect': 'off',
     },
   },
 ]

@@ -67,6 +67,31 @@ test('a malformed import is rejected and leaves the active journal visible', asy
   await expect(page.getByLabel('Water (ml)')).toHaveValue('700')
 })
 
+test('reminders, bounded self-reports, and date clearing preserve the guest journal', async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Calendar', exact: true }).click()
+  await page.getByLabel('Water (ml)', { exact: true }).fill('1250')
+  await page.getByRole('button', { name: 'Save metrics' }).click()
+
+  await page.getByRole('button', { name: 'Plans', exact: true }).click()
+  await page.getByRole('button', { name: 'Add reminder' }).click()
+  await page.getByLabel('Label', { exact: true }).fill('Fictional reminder')
+  await page.getByRole('button', { name: 'Save reminders' }).click()
+
+  await page.getByRole('button', { name: 'Calendar', exact: true }).click()
+  await page.getByLabel('Choose date').fill('')
+  await expect(page.getByRole('heading', { name: 'Calendar', exact: true })).toBeVisible()
+  await expect(page.getByLabel('Choose date')).not.toHaveValue('')
+  await page.getByLabel('Stress (0–10)').fill('11')
+  await expect(page.getByLabel('Stress (0–10)')).toHaveValue('')
+  await page.reload()
+  await page.getByRole('button', { name: 'Calendar', exact: true }).click()
+  await expect(page.getByLabel('Water (ml)', { exact: true })).toHaveValue('1250')
+  await expect(page.getByLabel('Stress (0–10)')).toHaveValue('')
+  await page.getByRole('button', { name: 'Plans', exact: true }).click()
+  await expect(page.getByLabel('Label', { exact: true })).toHaveValue('Fictional reminder')
+})
+
 test('has no serious automated accessibility violations in every current view', async ({ page }) => {
   await page.goto('/')
   for (const view of ['Today', 'Calendar', 'Insights', 'Plans', 'Data', 'Sign in']) {
