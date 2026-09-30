@@ -19,7 +19,7 @@ async function capture(path, viewport, view = 'Today') {
 try {
   await capture('docs/screenshots/desktop-today.png', { width: 1280, height: 720 })
   await capture('docs/screenshots/mobile-today.png', { width: 390, height: 844 })
-  await capture('docs/screenshots/desktop-routines.png', { width: 1280, height: 720 }, 'Routines')
+  await capture('docs/screenshots/desktop-plans.png', { width: 1280, height: 720 }, 'Plans')
   await capture('docs/screenshots/desktop-insights.png', { width: 1280, height: 720 }, 'Insights')
 } finally {
   await browser.close()

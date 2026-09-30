@@ -52,8 +52,27 @@ test('a visitor owns a reminder label and confirms a local import', async ({ pag
   await expect(page.getByRole('status')).toContainText('Import complete')
 })
 
-test('has no serious automated accessibility violations', async ({ page }) => {
+test('a malformed import is rejected and leaves the active journal visible', async ({ page }) => {
   await page.goto('/')
-  const results = await new AxeBuilder({ page }).analyze()
-  expect(results.violations.filter((item) => ['serious', 'critical'].includes(item.impact))).toEqual([])
+  await page.getByRole('button', { name: 'Calendar' }).click()
+  await page.getByLabel('Water (ml)').fill('700')
+  await page.getByRole('button', { name: 'Save metrics' }).click()
+  await page.getByRole('button', { name: 'Data' }).click()
+  await page.locator('#import-file').setInputFiles({
+    name: 'malformed.json', mimeType: 'application/json',
+    buffer: Buffer.from(JSON.stringify({ version: 3, goals: {}, medications: [null], routines: [], days: {} })),
+  })
+  await expect(page.getByRole('alert')).toContainText('not a valid version 3 wellness export')
+  await page.getByRole('button', { name: 'Calendar' }).click()
+  await expect(page.getByLabel('Water (ml)')).toHaveValue('700')
+})
+
+test('has no serious automated accessibility violations in every current view', async ({ page }) => {
+  await page.goto('/')
+  for (const view of ['Today', 'Calendar', 'Insights', 'Plans', 'Data', 'Sign in']) {
+    await page.getByRole('button', { name: view, exact: true }).click()
+    await expect(page.locator('main')).toBeVisible()
+    const results = await new AxeBuilder({ page }).analyze()
+    expect(results.violations.filter((item) => ['serious', 'critical'].includes(item.impact))).toEqual([])
+  }
 })

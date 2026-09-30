@@ -4,6 +4,10 @@ A local-first React application demonstrating versioned client data, account-sco
 
 The wellness journal is the domain used to exercise these engineering concerns. This repository is a local portfolio demonstration, not a hosted consumer service.
 
+Julia owned product direction, requirements, visual direction, acceptance criteria, review, and validation. Implementation was AI-assisted; this project is not presented as independent React authorship. Read the [product case study](docs/product-case-study.md) for scope and limits.
+
+![Routine Tracker Today view](docs/screenshots/desktop-today.png)
+
 ## What this project demonstrates
 
 - Feature-oriented React architecture with reusable components and immutable state updates.
@@ -28,7 +32,7 @@ flowchart LR
 
 `src/features/tracker/` owns the version-3 contract, validation, legacy migration, immutable mutations, local persistence, and import/export boundary. `src/features/wellness/` contains the domain model and pure calculations. `src/features/cloud/` isolates authentication and account-scoped synchronization from the UI.
 
-Signed-out use remains local. After authentication, the application loads or creates the user's snapshot, caches normalized state in the browser, and upserts changes to PostgreSQL. RLS independently restricts `select`, `insert`, `update`, and `delete` to rows where `auth.uid() = user_id`. The browser receives only a publishable key.
+Signed-out use remains local. Guest and account journals use separate browser-storage keys. After authentication, the application hides the journal until it loads or creates that account's snapshot, then caches normalized state under that account's key and upserts changes to PostgreSQL. RLS independently restricts `select`, `insert`, `update`, and `delete` to rows where `auth.uid() = user_id`. The browser receives only a publishable key.
 
 For a compact step-by-step view of one signed-out journal update—from a Calendar form event through immutable state, browser persistence, and the refreshed UI—see the [representative local journal update flow](docs/architecture-and-testing.md#representative-local-journal-update-flow).
 
@@ -37,10 +41,10 @@ For a compact step-by-step view of one signed-out journal update—from a Calend
 | Concern | Implementation |
 | --- | --- |
 | Schema evolution | Versions 1 and 2 migrate into the current version-3 journal |
-| Invalid persisted data | Validation and recovery prevent malformed data from breaking rendering |
-| Import safety | Only a valid version-3 structure is accepted; replacement requires review and confirmation |
-| Local/cloud boundary | The same normalized model supports local-only use and optional account sync |
-| Account isolation | PostgreSQL RLS enforces ownership independently of React UI behavior |
+| Invalid persisted data | Complete nested validation and recovery prevent malformed data from breaking rendering |
+| Import safety | Only a complete valid version-3 structure is accepted; replacement requires review and confirmation |
+| Local/cloud boundary | Guest and account journals have distinct browser cache keys and optional local account sync |
+| Account isolation | UI ownership gates and PostgreSQL RLS both prevent cross-account journal display or access |
 | Testability | Validation, mutations, dates, and calculations remain separate from rendered views |
 
 ## Run and verify
@@ -62,7 +66,7 @@ flowchart TD
 
 ### Prerequisites
 
-- Node.js 24.12.0 (recorded in `.nvmrc` and enforced by `package.json`)
+- Node.js 24.12.0 exactly (recorded in `.nvmrc` and enforced by `package.json`)
 - npm
 - Docker Desktop for the full workflow
 
@@ -136,9 +140,9 @@ Playwright starts and stops its own Vite server on port `4173`. The account suit
 
 Expected results for the current test set:
 
-- 8 Vitest files and 20 tests;
-- 8 Playwright desktop/mobile product and accessibility checks;
-- 2 Playwright desktop/mobile account-isolation checks;
+- 8 Vitest files and 23 tests;
+- 10 Playwright desktop/mobile product, import-safety, and accessibility checks;
+- 4 Playwright desktop/mobile account-isolation and session-expiry checks;
 - successful lint and production build;
 - 0 known dependency vulnerabilities.
 
@@ -158,7 +162,7 @@ Full verification is complete when Step 3 passes and the local stack is stopped 
 
 ## Optional manual exploration
 
-Manual clicking is not part of the automated release gate. Use it only when you want to inspect the interface or demonstrate the account flow.
+Manual clicking is not part of the automated release gate. Use it only when you want to inspect the interface or demonstrate the account flow. Browser storage is a continuity cache, not protection against someone with access to this browser or machine.
 
 After Step 2, start the application:
 

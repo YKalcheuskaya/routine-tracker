@@ -12,6 +12,8 @@
 .auth-card > p { color: #b5cfda; line-height: 1.55; }
 .auth-card form { display: grid; gap: .85rem; margin: 1.3rem 0; }
 .auth-card label { display: grid; gap: .4rem; color: #d9eff5; font-weight: 700; }
+.auth-card input { border: 1px solid rgba(176, 233, 255, .45); border-radius: .65rem; padding: .68rem .75rem; color: #eef8ff; background: #092033; }
+.auth-card input:-webkit-autofill { -webkit-text-fill-color: #eef8ff; box-shadow: 0 0 0 1000px #092033 inset; }
 .text-button { margin-top: .4rem; color: #93e7fa; text-decoration: underline; text-underline-offset: .22rem; }
 
 /* Give save actions room after the last field or result state. */

@@ -52,7 +52,7 @@ The cloud adapter never owns a service-role secret. The SQL migration applies RL
 3. The session user ID reaches `useTrackerData` through `App.jsx`.
 4. `useTrackerData` calls `loadCloudSnapshot(userId)`. A new account receives a clean, normalized journal and one account-scoped snapshot is created.
 5. In `CalendarView`, a form calls a mutation such as `onUpdateMetrics`, `onUpdateSleep`, `onAddActivity`, or `onAddMeal`.
-6. The mutation delegates to a pure `tracker-storage.js` helper, updates React state, updates local cache, and saves the normalized snapshot when signed in. The [representative local journal update flow](architecture-and-testing.md#representative-local-journal-update-flow) shows the signed-out metrics path in exact sequence.
+6. The mutation delegates to a pure `tracker-storage.js` helper inside the React state updater, updates the owner-specific local cache, and saves the normalized snapshot when signed in. The [representative local journal update flow](architecture-and-testing.md#representative-local-journal-update-flow) illustrates the signed-out metrics path.
 7. `TodayDashboard` and `InsightsView` derive their visible summaries from the same dated journal.
 8. After sign-out and sign-in, the adapter loads the same account snapshot rather than another account's cache.
 
