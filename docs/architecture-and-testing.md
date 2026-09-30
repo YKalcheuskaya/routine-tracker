@@ -90,7 +90,7 @@ When local Supabase configuration is present, `useAuth` resolves the email/passw
 
 The SQL migration in `supabase/migrations/` enables Row Level Security. Its policies allow a signed-in user to select, insert, update, or delete only the row whose `user_id` equals their authenticated ID. The browser receives a publishable key only; a service-role key is never part of the client configuration.
 
-This is a localhost engineering demonstration, not a deployed service. It makes no production privacy, HIPAA, clinical, availability, support, or security-certification claim.
+The deployed site is a credential-free guest-mode engineering preview. Authenticated synchronization and RLS verification remain local/CI-only. The project makes no production privacy, HIPAA, clinical, availability, support, or security-certification claim.
 
 ## Test pyramid
 

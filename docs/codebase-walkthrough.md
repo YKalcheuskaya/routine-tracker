@@ -6,7 +6,7 @@ Read this as a map for a live explanation, not as a script to memorize. Start wi
 
 ## Recommended reading order
 
-1. `README.md` — purpose, local-only boundary, commands, and account safety notes.
+1. `README.md` — purpose, public guest-preview boundary, local account commands, and safety notes.
 2. `docs/product-case-study.md` — user journey, product decisions, and explicit limits.
 3. `docs/architecture-and-testing.md` — version-3 journal, local account model, and test strategy.
 4. `src/app/App.jsx` — composition root and navigation.
@@ -76,7 +76,7 @@ The cloud adapter never owns a service-role secret. The SQL migration applies RL
 - **Unit/hook/component tests:** journal model, checked version migration and server data, ordered account saves, stale callbacks, manual-entry mutations, insight calculations, forms, and display states.
 - **Browser tests:** desktop/mobile flows, manual logging, reminder persistence, bounded inputs, import review, accessibility scans, and responsive behavior.
 - **Local account tests:** disposable accounts prove cross-account isolation, expired-session safety, persistence, and non-destructive behavior after a failed snapshot read.
-- **Manual review:** visual density, health-adjacent language, complete signup/signout/signin cycle, and local-only boundaries.
+- **Manual review:** visual density, health-adjacent language, public guest-preview behavior, and the complete local signup/signout/signin cycle.
 
 Run the current local checks with:
 
@@ -91,6 +91,6 @@ npm run verify:full
 3. Show the compact Today progress and one descriptive Insight.
 4. Explain the account boundary: email/password session, one snapshot per user, RLS in the migration, publishable browser key only.
 5. Sign out and sign in again, then show persistence. If time allows, use a second disposable account to show isolation.
-6. Close with truthful limits: localhost only, no real users or health advice, no public deployment, and AI-assisted implementation.
+6. Close with truthful limits: the deployed site is guest-only, account infrastructure remains local/CI-only, there are no real users or health advice, and implementation was AI-assisted.
 
 The strongest answer is precise rather than broad: name one behavior, the responsible module, the check that exercises it, and the boundary the project intentionally does not cross.

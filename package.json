@@ -10,6 +10,8 @@
     "dev": "vite",
     "dev:local": "vite --host 127.0.0.1",
     "build": "vite build",
+    "build:pages": "VITE_GUEST_PREVIEW=true vite build --base=/routine-tracker/",
+    "verify:pages": "npm run build:pages && node scripts/verify-pages-build.mjs",
     "preview": "vite preview",
     "lint": "eslint .",
     "test": "vitest run",

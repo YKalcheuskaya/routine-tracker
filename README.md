@@ -1,12 +1,21 @@
 # Routine Tracker
 
-A local-first React application demonstrating versioned client data, account-scoped synchronization, PostgreSQL Row Level Security, responsive UI, accessibility, and layered automated testing.
+A local-first React wellness journal built as a quality-engineering case study in safe persistence, account-scoped synchronization, PostgreSQL Row Level Security, accessibility, and layered regression testing.
 
-The wellness journal is the domain used to exercise these engineering concerns. This repository is a local portfolio demonstration, not a hosted consumer service.
+[![Verify](https://github.com/YKalcheuskaya/routine-tracker/actions/workflows/verify.yml/badge.svg?branch=main)](https://github.com/YKalcheuskaya/routine-tracker/actions/workflows/verify.yml)
 
-Julia owned product direction, requirements, visual direction, acceptance criteria, review, and validation. Implementation was AI-assisted; this project is not presented as independent React authorship. Read the [product case study](docs/product-case-study.md) for scope and limits.
+[Open the live demo](https://ykalcheuskaya.github.io/routine-tracker/) · [View the verification workflow](https://github.com/YKalcheuskaya/routine-tracker/actions/workflows/verify.yml) · [Read the product case study](docs/product-case-study.md)
 
 ![Routine Tracker Today view](docs/screenshots/desktop-today.png)
+
+The wellness journal is the domain used to exercise these engineering concerns. The live site is a credential-free guest preview: it stores fictional entries in that browser only. Authenticated synchronization and database authorization remain reproducible through the repository's automated local Supabase environment and GitHub Actions.
+
+## Failure modes prevented
+
+- [A failed snapshot read cannot overwrite the server journal with fallback data](e2e/local-auth.spec.js).
+- [Rapid account updates stay ordered and late callbacks cannot cross account boundaries](src/features/tracker/use-tracker-data.test.jsx).
+- [Malformed imports, server snapshots, and migrated records are rejected before rendering](src/features/tracker/tracker-storage.test.js).
+- [Direct two-account checks prove owner access and deny cross-account select, insert, update, and delete](scripts/verify-rls.mjs).
 
 ## What this project demonstrates
 
@@ -150,7 +159,7 @@ Expected results for the current test set:
 
 Every Playwright run keeps the console reporter and writes an ignored HTML report plus JUnit XML. Failed checks also retain a trace and screenshot in `test-results/`. Open the local HTML report with `npx playwright show-report`.
 
-GitHub Actions starts the local Supabase stack, reapplies the version-controlled migration, generates the browser-safe local configuration without logging key values, runs this same full gate, and always attempts to stop the stack. Each run includes a short job summary and uploads `playwright-report/` plus `test-results/` for 14 days, including on failed runs.
+GitHub Actions starts the local Supabase stack, reapplies the version-controlled migration, generates the browser-safe local configuration without logging key values, runs this same full gate, and always attempts to stop the stack. Each run includes a short job summary and uploads `playwright-report/` plus `test-results/` for 14 days, including on failed runs. After a successful `main` run, a dependent job builds the explicit guest mode, verifies its repository asset path and absence of local Supabase configuration, and deploys it to GitHub Pages.
 
 The project does not maintain a reduced smoke suite because the complete browser suites are already small and fast. To run only the Docker-independent layers during development, use `npm run verify:core`; targeted `npm run test:e2e` and `npm run test:local-auth` commands remain available for diagnosis.
 
@@ -195,3 +204,9 @@ npx supabase db reset --local
 ```
 
 This deletes only local demo accounts and entries.
+
+## Contribution and project boundary
+
+Julia owned product direction, requirements, visual direction, acceptance criteria, review, and validation. AI tools assisted implementation; this project is presented as a product-ownership and quality-engineering case study rather than independent React authorship. The [product case study](docs/product-case-study.md) records the scope and limits in more detail.
+
+The public site is a guest-mode portfolio preview, not a hosted account or health service. It has no real users, clinical purpose, production availability commitment, or public Supabase backend. Use fictional data only.

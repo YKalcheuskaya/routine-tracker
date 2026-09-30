@@ -4,7 +4,7 @@
 
 Routine Tracker is a private, manual-first journal for a person who wants to turn selected wellness goals into a clear daily action view. The product is intentionally active and progress-oriented: it makes goals, current progress, and useful context visible without treating mood, symptoms, medication, or cycle information as a performance score.
 
-It is a local portfolio demonstration. The account flow is included so an interviewer can see registration, sign-in, account-scoped persistence, and an RLS-backed data boundary without presenting the project as a public health product.
+It includes a public guest-mode portfolio preview backed only by browser storage. The local account flow lets an interviewer reproduce registration, sign-in, account-scoped persistence, and an RLS-backed data boundary without presenting the project as a public health product.
 
 ## Primary journey
 
@@ -34,7 +34,7 @@ Use fictional data for every demonstration. Do not enter real health, medication
 
 - Routine Tracker does not integrate with Oura Ring or any wearable.
 - It does not measure sleep stages, diagnose symptoms, make treatment recommendations, or provide medication advice.
-- It is not a public service and has no real users, public deployment, cloud project, privacy policy, support operation, or production security claim.
+- The deployed site is a credential-free guest preview, not a public account service; it has no real users, cloud database project, privacy policy, support operation, or production security claim.
 - A real launch would be a separate product and engineering phase, not a small extension of this demo.
 
 ## Acceptance evidence
