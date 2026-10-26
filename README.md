@@ -75,7 +75,7 @@ flowchart TD
 
 ### Prerequisites
 
-- Node.js 24.12.0 exactly (recorded in `.nvmrc` and enforced by `package.json`)
+- Node.js 24.12.0 exactly (pinned in `.nvmrc` and declared in `package.json`; npm normally warns on an engine mismatch)
 - npm
 - Docker Desktop for the full workflow
 
@@ -155,7 +155,7 @@ Expected results for the current test set:
 - 6 Playwright desktop/mobile account-isolation, session-expiry, and read-failure checks;
 - direct RLS owner and cross-account select/insert/update/delete verification;
 - successful lint and production build;
-- 0 known dependency vulnerabilities.
+- 0 known dependency vulnerabilities at the time of verification; rerun `npm audit` because advisory data changes.
 
 Every Playwright run keeps the console reporter and writes an ignored HTML report plus JUnit XML. Failed checks also retain a trace and screenshot in `test-results/`. Open the local HTML report with `npx playwright show-report`.
 

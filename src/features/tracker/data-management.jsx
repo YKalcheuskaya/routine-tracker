@@ -1,7 +1,7 @@
 /**
  * Local backup boundary. Export creates a browser download; import validates and
- * previews a file before the user can confirm replacement of current local data.
- * Neither path sends wellness data over the network.
+ * previews a file before the user can confirm journal replacement. Confirmed
+ * imports synchronize when signed in; guest imports stay local. Export is local.
  */
 import { useState } from 'react'
 import { parseTrackerImport, serializeTrackerData } from './tracker-storage'

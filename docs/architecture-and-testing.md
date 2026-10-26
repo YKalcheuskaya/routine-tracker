@@ -116,4 +116,9 @@ The app uses native form controls, explicit labels, buttons, visible focus treat
 
 ## Delivery boundary
 
-Routine Tracker remains a local application. No cloud Supabase project, hosted application URL, real-user invitation, or production operation exists. Any real launch would require a separate scope including privacy/legal review, security/threat modeling, account recovery and deletion policies, operational monitoring, support, and deployment verification.
+Routine Tracker has a [public browser-only guest preview](https://ykalcheuskaya.github.io/routine-tracker/). Authentication and account synchronization are demonstrated only with local Supabase and in CI; no public Supabase backend, real-user invitation, or production operation exists. Any real launch would require a separate scope including privacy/legal review, security/threat modeling, account recovery and deletion policies, operational monitoring, support, and deployment verification.
+
+
+## Dependency maintenance — October 25, 2026
+
+Compatible lockfile updates address the reported development dependency advisories. Tailwind remains on version 3.4.19. A package-specific npm override selects postcss-selector-parser 7.1.7 for its two consumers, Tailwind and postcss-nested, to address [GHSA-rj75-hqrm-r3gf](https://github.com/advisories/GHSA-rj75-hqrm-r3gf) without migrating the CSS framework. This crosses their declared parser major range, so build and browser verification are required when updating it. The application processes repository-authored CSS; the advisory concerns untrusted selectors. The override repairs the dependency gate rather than asserting that the public guest preview was compromised.
